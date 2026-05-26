@@ -41,6 +41,9 @@ function SystemCheckPage() {
   const navigate = useNavigate();
   const [checks, setChecks] = useState<Check[]>(INITIAL);
   const [running, setRunning] = useState(false);
+  const callListAccounts = useServerFn(listAccounts);
+  const callInvite = useServerFn(inviteAccount);
+  const callReset = useServerFn(sendPasswordReset);
 
   useEffect(() => {
     if (user && user.role !== "admin") navigate({ to: "/dashboard", replace: true });
