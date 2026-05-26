@@ -1,10 +1,11 @@
-// Domain types aligned to future Supabase tables:
+// Domain types aligned to Supabase tables:
 // profiles, reps, leads, meetings, signups, commissions, activity_logs
 
-export type Role = "admin" | "rep";
+export type Role = "admin" | "sales_rep";
 
 export interface Profile {
-  id: string;
+  id: string;       // linked rep.id when available; otherwise '' for unlinked admin
+  auth_id: string;  // auth.users.id
   full_name: string;
   email: string;
   role: Role;
@@ -19,6 +20,7 @@ export interface Rep {
   sport_focus: string;
   role: Role;
   active: boolean;
+  user_id?: string | null;
 }
 
 export type LeadStatus =
@@ -54,7 +56,7 @@ export interface Lead {
   assigned_rep_id: string;
   status: LeadStatus;
   notes: string;
-  next_follow_up: string | null; // ISO date
+  next_follow_up: string | null;
   created_at: string;
 }
 
@@ -65,7 +67,7 @@ export interface Meeting {
   id: string;
   lead_id: string;
   rep_id: string;
-  meeting_at: string; // ISO datetime
+  meeting_at: string;
   meeting_type: MeetingType;
   status: MeetingStatus;
   outcome_notes: string;
@@ -124,6 +126,7 @@ export const COMMISSION_AMOUNTS: Record<CommissionYear, number> = {
   "5th year+": 50,
 };
 
+// Qualification: licence paid (R2,500) + ≥3 active teams + paying users active
 export function commissionQualified(s: Signup): boolean {
   return s.paid && s.active_teams >= 3 && s.paying_users_active;
 }

@@ -1,12 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Rep, Lead, Meeting, Signup, ActivityLog, Profile } from "./types";
 import {
-  INITIAL_REPS, INITIAL_LEADS, INITIAL_MEETINGS, INITIAL_SIGNUPS,
-  INITIAL_ACTIVITY, DEMO_USERS,
-} from "./mockData";
-
-const LS_KEY = "4sport-state-v1";
-const SESSION_KEY = "4sport-session-v1";
+  createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
+} from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type {
+  Rep, Lead, Meeting, Signup, ActivityLog, Profile, Role,
+} from "./types";
 
 interface State {
   reps: Rep[];
@@ -16,88 +14,281 @@ interface State {
   activity: ActivityLog[];
 }
 
-const initialState: State = {
-  reps: INITIAL_REPS,
-  leads: INITIAL_LEADS,
-  meetings: INITIAL_MEETINGS,
-  signups: INITIAL_SIGNUPS,
-  activity: INITIAL_ACTIVITY,
-};
-
-function loadState(): State {
-  if (typeof window === "undefined") return initialState;
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return initialState;
-}
+const emptyState: State = { reps: [], leads: [], meetings: [], signups: [], activity: [] };
 
 interface Ctx {
   state: State;
   user: Profile | null;
-  login: (email: string, password: string) => Profile | null;
-  logout: () => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<Profile | { error: string }>;
+  logout: () => Promise<void>;
   setState: (updater: (s: State) => State) => void;
-  addActivity: (action: string, detail: string) => void;
+  addActivity: (action: string, detail: string, entity?: { type?: string; id?: string }) => Promise<void>;
   uid: () => string;
 }
 
 const StoreContext = createContext<Ctx | null>(null);
 
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setStateInner] = useState<State>(initialState);
-  const [user, setUser] = useState<Profile | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+// ---------- Row mappers (DB <-> domain) ----------
+const repFromRow = (r: any): Rep => ({
+  id: r.id,
+  user_id: r.user_id ?? null,
+  full_name: r.full_name,
+  email: r.email,
+  phone: r.phone ?? "",
+  province: r.province ?? "",
+  sport_focus: r.sport_focus ?? "",
+  role: r.role as Role,
+  active: !!r.active,
+});
 
-  // Hydrate from localStorage on client only (SSR-safe)
-  useEffect(() => {
-    setStateInner(loadState());
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (raw) setUser(JSON.parse(raw));
-    } catch { /* ignore */ }
-    setHydrated(true);
+const leadFromRow = (r: any): Lead => ({
+  id: r.id,
+  org_name: r.org_name,
+  org_type: r.org_type,
+  province: r.province ?? "",
+  city: r.city ?? "",
+  region: r.region ?? "",
+  sport_focus: r.sport_focus ?? "",
+  contact_person: r.contact_person ?? "",
+  contact_role: r.contact_role ?? "",
+  phone: r.phone ?? "",
+  email: r.email ?? "",
+  lead_source: r.lead_source ?? "",
+  assigned_rep_id: r.assigned_rep_id ?? "",
+  status: r.status,
+  notes: r.notes ?? "",
+  next_follow_up: r.next_follow_up ?? null,
+  created_at: r.created_at,
+});
+
+const meetingFromRow = (r: any): Meeting => ({
+  id: r.id,
+  lead_id: r.lead_id,
+  rep_id: r.rep_id ?? "",
+  meeting_at: r.meeting_at,
+  meeting_type: r.meeting_type,
+  status: r.status,
+  outcome_notes: r.outcome_notes ?? "",
+  next_action: r.next_action ?? "",
+  next_follow_up: r.next_follow_up ?? null,
+});
+
+const signupFromRow = (r: any): Signup => ({
+  id: r.id,
+  lead_id: r.lead_id,
+  rep_id: r.rep_id ?? "",
+  signed_date: r.signed_date,
+  paid: !!r.paid,
+  payment_date: r.payment_date ?? null,
+  active_teams: r.active_teams ?? 0,
+  paying_users_active: !!r.paying_users_active,
+  commission_year: r.commission_year,
+  commission_payment_status: r.commission_payment_status,
+  admin_notes: r.admin_notes ?? "",
+});
+
+const activityFromRow = (r: any): ActivityLog => ({
+  id: r.id,
+  at: r.created_at,
+  actor_id: r.actor_id ?? "",
+  actor_name: r.actor_name ?? "",
+  action: r.action,
+  detail: r.detail ?? "",
+});
+
+// ---------- Diff to DB ----------
+function eq(a: any, b: any) { return JSON.stringify(a) === JSON.stringify(b); }
+
+async function syncTable<T extends { id: string }>(
+  table: "reps" | "leads" | "meetings" | "signups",
+  oldList: T[],
+  newList: T[],
+  toRow: (x: T) => any,
+) {
+  const oldMap = new Map(oldList.map((x) => [x.id, x]));
+  const newMap = new Map(newList.map((x) => [x.id, x]));
+  const upserts: any[] = [];
+  for (const [id, n] of newMap) {
+    const o = oldMap.get(id);
+    if (!o || !eq(o, n)) upserts.push(toRow(n));
+  }
+  const deletes: string[] = [];
+  for (const id of oldMap.keys()) if (!newMap.has(id)) deletes.push(id);
+
+  if (upserts.length) {
+    const { error } = await supabase.from(table).upsert(upserts);
+    if (error) console.error(`[sync ${table} upsert]`, error);
+  }
+  if (deletes.length) {
+    const { error } = await supabase.from(table).delete().in("id", deletes);
+    if (error) console.error(`[sync ${table} delete]`, error);
+  }
+}
+
+const repToRow = (r: Rep) => ({
+  id: r.id, user_id: r.user_id ?? null, full_name: r.full_name, email: r.email,
+  phone: r.phone, province: r.province, sport_focus: r.sport_focus,
+  role: r.role, active: r.active,
+});
+const leadToRow = (l: Lead) => ({
+  id: l.id, org_name: l.org_name, org_type: l.org_type, province: l.province,
+  city: l.city, region: l.region, sport_focus: l.sport_focus,
+  contact_person: l.contact_person, contact_role: l.contact_role,
+  phone: l.phone, email: l.email, lead_source: l.lead_source,
+  assigned_rep_id: l.assigned_rep_id || null,
+  status: l.status, notes: l.notes, next_follow_up: l.next_follow_up,
+});
+const meetingToRow = (m: Meeting) => ({
+  id: m.id, lead_id: m.lead_id, rep_id: m.rep_id || null,
+  meeting_at: m.meeting_at, meeting_type: m.meeting_type, status: m.status,
+  outcome_notes: m.outcome_notes, next_action: m.next_action,
+  next_follow_up: m.next_follow_up,
+});
+const signupToRow = (s: Signup) => ({
+  id: s.id, lead_id: s.lead_id, rep_id: s.rep_id || null,
+  signed_date: s.signed_date, paid: s.paid, payment_date: s.payment_date,
+  active_teams: s.active_teams, paying_users_active: s.paying_users_active,
+  commission_year: s.commission_year, commission_payment_status: s.commission_payment_status,
+  admin_notes: s.admin_notes,
+});
+
+// ---------- Provider ----------
+export function StoreProvider({ children }: { children: ReactNode }) {
+  const [state, setStateInner] = useState<State>(emptyState);
+  const [user, setUser] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const loadAll = useCallback(async (profile: Profile) => {
+    const [reps, leads, meetings, signups, activity] = await Promise.all([
+      supabase.from("reps").select("*").order("full_name"),
+      supabase.from("leads").select("*").order("created_at", { ascending: false }),
+      supabase.from("meetings").select("*").order("meeting_at", { ascending: false }),
+      supabase.from("signups").select("*").order("created_at", { ascending: false }),
+      supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(500),
+    ]);
+    setStateInner({
+      reps: (reps.data ?? []).map(repFromRow),
+      leads: (leads.data ?? []).map(leadFromRow),
+      meetings: (meetings.data ?? []).map(meetingFromRow),
+      signups: (signups.data ?? []).map(signupFromRow),
+      activity: (activity.data ?? []).map(activityFromRow),
+    });
+    // Profile.id needs to be the linked rep id (for filter parity with assigned_rep_id / rep_id)
+    if (!profile.id) {
+      const mine = (reps.data ?? []).find((r: any) => r.user_id === profile.auth_id);
+      if (mine) setUser({ ...profile, id: mine.id });
+    }
+  }, []);
+
+  const buildProfileFromAuth = useCallback(async (authUser: { id: string; email?: string | null }): Promise<Profile | null> => {
+    const { data: prof } = await supabase
+      .from("profiles").select("*").eq("id", authUser.id).maybeSingle();
+    if (!prof) return null;
+    const { data: rep } = await supabase
+      .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
+    return {
+      id: rep?.id ?? "",
+      auth_id: authUser.id,
+      full_name: prof.full_name || prof.email,
+      email: prof.email,
+      role: prof.role,
+    };
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(LS_KEY, JSON.stringify(state));
-  }, [state, hydrated]);
+    let active = true;
 
-  const setState = (updater: (s: State) => State) => setStateInner(updater);
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Defer to avoid deadlock with supabase client
+      setTimeout(async () => {
+        if (!active) return;
+        if (!session?.user) {
+          setUser(null);
+          setStateInner(emptyState);
+          setLoading(false);
+          return;
+        }
+        const profile = await buildProfileFromAuth(session.user);
+        if (!active) return;
+        setUser(profile);
+        if (profile) await loadAll(profile);
+        setLoading(false);
+      }, 0);
+    });
 
-  const login = (email: string, password: string) => {
-    const found = DEMO_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
-    );
-    if (!found) return null;
-    const profile: Profile = { id: found.id, full_name: found.full_name, email: found.email, role: found.role };
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      if (!data.session?.user) { setLoading(false); return; }
+      const profile = await buildProfileFromAuth(data.session.user);
+      if (!active) return;
+      setUser(profile);
+      if (profile) await loadAll(profile);
+      setLoading(false);
+    })();
+
+    return () => { active = false; sub.subscription.unsubscribe(); };
+  }, [buildProfileFromAuth, loadAll]);
+
+  const setState = useCallback((updater: (s: State) => State) => {
+    setStateInner((prev) => {
+      const next = updater(prev);
+      // Fire-and-forget DB sync for the four mutable tables
+      void syncTable("reps", prev.reps, next.reps, repToRow);
+      void syncTable("leads", prev.leads, next.leads, leadToRow);
+      void syncTable("meetings", prev.meetings, next.meetings, meetingToRow);
+      void syncTable("signups", prev.signups, next.signups, signupToRow);
+      return next;
+    });
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error || !data.user) return { error: error?.message ?? "Invalid email or password." };
+    const profile = await buildProfileFromAuth(data.user);
+    if (!profile) return { error: "No profile found for this account." };
     setUser(profile);
-    localStorage.setItem(SESSION_KEY, JSON.stringify(profile));
+    await loadAll(profile);
     return profile;
-  };
+  }, [buildProfileFromAuth, loadAll]);
 
-  const logout = () => {
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem(SESSION_KEY);
-  };
+    setStateInner(emptyState);
+  }, []);
 
-  const uid = () => Math.random().toString(36).slice(2, 10);
+  const uid = useCallback(() => {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+    return "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }, []);
 
-  const addActivity = (action: string, detail: string) => {
-    if (!user) return;
+  const addActivity = useCallback(async (
+    action: string, detail: string, entity?: { type?: string; id?: string },
+  ) => {
+    const u = user;
+    if (!u) return;
+    const row = {
+      actor_id: u.auth_id,
+      actor_name: u.full_name,
+      action,
+      detail,
+      entity_type: entity?.type ?? "",
+      entity_id: entity?.id ?? null,
+    };
+    const { data, error } = await supabase.from("activity_logs").insert(row).select().single();
+    if (error) { console.error("[activity insert]", error); return; }
     setStateInner((s) => ({
       ...s,
-      activity: [
-        { id: uid(), at: new Date().toISOString(), actor_id: user.id, actor_name: user.full_name, action, detail },
-        ...s.activity,
-      ].slice(0, 500),
+      activity: [activityFromRow(data), ...s.activity].slice(0, 500),
     }));
-  };
+  }, [user]);
 
   return (
-    <StoreContext.Provider value={{ state, user, login, logout, setState, addActivity, uid }}>
+    <StoreContext.Provider value={{ state, user, loading, login, logout, setState, addActivity, uid }}>
       {children}
     </StoreContext.Provider>
   );
