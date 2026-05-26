@@ -13,13 +13,19 @@ export interface Profile {
 
 export interface Rep {
   id: string;
+  profile_id?: string | null;
   full_name: string;
   email: string;
   phone: string;
   province: string;
+  region?: string;
   sport_focus: string;
   role: Role;
   active: boolean;
+  invitation_status?: "pending" | "accepted" | "expired" | "revoked";
+  invited_at?: string | null;
+  last_invite_sent_at?: string | null;
+  password_reset_sent_at?: string | null;
   user_id?: string | null;
 }
 
