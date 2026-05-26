@@ -225,10 +225,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (profErr) console.warn("[profile.lookup.error]", profErr.message);
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
 
+    // Bootstrap-admin self-repair: only for the designated bootstrap email.
+    const BOOTSTRAP_EMAIL = "swanepoelchristo00@gmail.com";
+    if (!prof && authUser.email?.toLowerCase() === BOOTSTRAP_EMAIL) {
+      console.warn("[profile.repair] bootstrap admin profile missing — repairing");
+      await supabase.from("profiles").upsert(
+        { id: authUser.id, email: authUser.email, full_name: "Christo" },
+        { onConflict: "id" },
+      );
+      await supabase.from("user_roles").upsert(
+        { user_id: authUser.id, role: "admin" },
+        { onConflict: "user_id,role" },
+      );
+      const res = await supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
+      prof = res.data;
+    }
+
     if (!prof) return null;
+    // reps links via reps.user_id = auth.users.id (profiles.id = auth.users.id).
     const { data: rep } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
-    const role = (roles ?? []).some((r: any) => r.role === "admin") ? "admin" : "sales_rep";
+    const roleList = roles ?? [];
+    const isBootstrap = authUser.email?.toLowerCase() === BOOTSTRAP_EMAIL;
+    const role = roleList.some((r: any) => r.role === "admin") || isBootstrap ? "admin" : "sales_rep";
     return {
       id: rep?.id ?? "",
       auth_id: authUser.id,
@@ -237,6 +256,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       role,
     };
   }, []);
+
 
   useEffect(() => {
     let active = true;
