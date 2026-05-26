@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Logo } from "@/components/Logo";
 import { audit } from "@/lib/audit";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
@@ -13,6 +14,25 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Clean stale recovery state / broken PKCE verifiers on mount.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const errDesc = url.searchParams.get("error_description") || url.hash.includes("error_description");
+      if (errDesc) {
+        // Drop the broken recovery params from the URL.
+        window.history.replaceState({}, "", url.pathname);
+        setError(typeof errDesc === "string" ? errDesc : "This link has expired. Please request a new one.");
+      }
+      // Stale PKCE verifier from an abandoned reset flow can poison the next sign-in.
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith("sb-") && k.endsWith("-auth-token-code-verifier")) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch { /* noop */ }
+  }, []);
 
   useEffect(() => {
     if (user) navigate({ to: "/dashboard", replace: true });
@@ -27,12 +47,17 @@ function LoginPage() {
     setBusy(false);
     if ("error" in result) {
       setError(result.error);
-      // Failed login can't write under user's auth.uid() (none yet) — log client-side only.
       console.warn("[login.failed]", trimmed, result.error);
       return;
     }
     void audit("login.success", trimmed);
-    navigate({ to: "/dashboard" });
+    // Confirm session is really there before navigating.
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      setError("Session did not persist. Please try again.");
+      return;
+    }
+    navigate({ to: "/dashboard", replace: true });
   };
 
   return (
