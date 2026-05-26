@@ -389,7 +389,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <StoreContext.Provider value={{ state, user, loading, login, retryProfileLoad, logout, setState, addActivity, uid }}>
+    <StoreContext.Provider value={{ state, user, loading, finalizing, login, retryProfileLoad, logout, setState, addActivity, uid }}>
       {children}
     </StoreContext.Provider>
   );
