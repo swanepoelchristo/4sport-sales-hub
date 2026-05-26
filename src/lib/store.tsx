@@ -197,21 +197,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const buildProfileFromAuth = useCallback(async (authUser: { id: string; email?: string | null }): Promise<Profile | null> => {
-    const [{ data: prof }, { data: roles }] = await Promise.all([
-      supabase
-        .from("profiles").select("*").eq("id", authUser.id).maybeSingle(),
-      supabase
-        .from("user_roles").select("role").eq("user_id", authUser.id),
+    const [{ data: prof, error: profErr }, { data: roles, error: rolesErr }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", authUser.id),
     ]);
-    if (!prof) return null;
+    if (profErr) console.warn("[profile.lookup.error]", profErr.message);
+    if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
+
+    let profile: any = prof;
+
+    // Safe self-repair: bootstrap admin only.
+    if (!profile && authUser.email === "swanepoelchristo00@gmail.com") {
+      console.warn("[profile.repair] creating missing profile for bootstrap admin");
+      const { data: upserted, error: upErr } = await supabase
+        .from("profiles")
+        .upsert({ id: authUser.id, email: authUser.email, full_name: "Christo" }, { onConflict: "id" })
+        .select("*")
+        .maybeSingle();
+      if (upErr) {
+        console.warn("[profile.repair.error]", upErr.message);
+      } else {
+        profile = upserted;
+        await supabase.from("user_roles").upsert(
+          { user_id: authUser.id, role: "admin" },
+          { onConflict: "user_id,role" }
+        );
+      }
+    }
+
+    if (!profile) return null;
     const { data: rep } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
-    const role = (roles ?? []).some((r: any) => r.role === "admin") ? "admin" : "sales_rep";
+    const isBootstrapAdmin = authUser.email === "swanepoelchristo00@gmail.com";
+    const role = ((roles ?? []).some((r: any) => r.role === "admin") || isBootstrapAdmin) ? "admin" : "sales_rep";
     return {
       id: rep?.id ?? "",
       auth_id: authUser.id,
-      full_name: prof.full_name || prof.email,
-      email: prof.email,
+      full_name: profile.full_name || profile.email,
+      email: profile.email,
       role,
     };
   }, []);
