@@ -280,7 +280,19 @@ function SystemCheckPage() {
       } catch (e: any) {
         update("reset-fn", { status: "fail", message: e?.message ?? String(e) });
       }
-    } finally {
+
+      // 15. /reset-password route reachable
+      update("reset-route", { status: "running", message: "" });
+      try {
+        const res = await fetch("/reset-password", { method: "GET", redirect: "manual" });
+        if (res.status >= 200 && res.status < 400) {
+          update("reset-route", { status: "pass", message: `HTTP ${res.status}` });
+        } else {
+          update("reset-route", { status: "fail", message: `HTTP ${res.status}` });
+        }
+      } catch (e: any) {
+        update("reset-route", { status: "fail", message: e?.message ?? String(e) });
+      }
       // Cleanup TEST records
       if (cleanup.meetingId) {
         await supabase.from("meetings").delete().eq("id", cleanup.meetingId);
