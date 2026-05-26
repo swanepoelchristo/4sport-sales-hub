@@ -101,7 +101,8 @@ function LoginPage() {
               <Link to="/bootstrap-admin" className="text-muted-foreground hover:text-primary hover:underline">First-time setup</Link>
             </div>
             <p className="mt-3 text-center text-xs text-muted-foreground">
-              Accounts are created by an administrator.
+              Accounts are created by an administrator.{" "}
+              <Link to="/forgot-password" className="text-primary hover:underline">Reset password again</Link>
             </p>
           </form>
         </div>
