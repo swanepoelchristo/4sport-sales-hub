@@ -29,6 +29,9 @@ const INITIAL: Check[] = [
   { id: "commission", label: "9. Signup commission calculation works", status: "pending", message: "", at: null },
   { id: "activity",   label: "10. Activity log writes correctly", status: "pending", message: "", at: null },
   { id: "rls",        label: "11. RLS blocks unauthorized access", status: "pending", message: "", at: null },
+  { id: "auth-link",  label: "12. auth.users → profiles → user_roles → reps linkage", status: "pending", message: "", at: null },
+  { id: "invite-fn",  label: "13. Admin can call invite server function", status: "pending", message: "", at: null },
+  { id: "reset-fn",   label: "14. Admin can call password-reset server function", status: "pending", message: "", at: null },
 ];
 
 function SystemCheckPage() {
