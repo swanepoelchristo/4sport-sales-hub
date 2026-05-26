@@ -198,7 +198,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const buildProfileFromAuth = useCallback(async (authUser: { id: string; email?: string | null }): Promise<Profile | null> => {
     const [{ data: prof }, { data: roles }] = await Promise.all([
       supabase
-      .from("profiles").select("*").eq("id", authUser.id).maybeSingle();
+        .from("profiles").select("*").eq("id", authUser.id).maybeSingle(),
       supabase
         .from("user_roles").select("role").eq("user_id", authUser.id),
     ]);
