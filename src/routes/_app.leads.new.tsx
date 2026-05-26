@@ -46,9 +46,9 @@ export function LeadForm({
 
   const remove = () => {
     if (!leadId) return;
-    if (!confirm("Delete this lead?")) return;
+    if (!confirm("Archive this lead? It will be hidden but kept in the database.")) return;
     setState((s) => ({ ...s, leads: s.leads.filter((l) => l.id !== leadId) }));
-    addActivity("Lead deleted", form.org_name);
+    addActivity("Lead archived", form.org_name);
     navigate({ to: "/leads" });
   };
 
