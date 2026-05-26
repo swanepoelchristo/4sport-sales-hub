@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useStore } from "@/lib/store";
+import { PROFILE_LOAD_ERROR, useStore } from "@/lib/store";
 import { Logo } from "@/components/Logo";
 import { audit } from "@/lib/audit";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
 function LoginPage() {
-  const { login, user } = useStore();
+  const { login, retryProfileLoad, user } = useStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -60,6 +60,18 @@ function LoginPage() {
     navigate({ to: "/dashboard", replace: true });
   };
 
+  const retryProfile = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await retryProfileLoad();
+    setBusy(false);
+    if ("error" in result) {
+      setError(result.error);
+      return;
+    }
+    navigate({ to: "/dashboard", replace: true });
+  };
+
   return (
     <div className="flex min-h-screen flex-col brand-gradient-bg">
       <div className="flex flex-1 items-center justify-center px-4 py-10">
@@ -89,7 +101,21 @@ function LoginPage() {
                 placeholder="••••••••" autoComplete="current-password"
               />
             </label>
-            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm text-destructive">{error}</p>
+                {error === PROFILE_LOAD_ERROR && (
+                  <button
+                    type="button"
+                    onClick={retryProfile}
+                    disabled={busy}
+                    className="text-sm font-medium text-primary hover:underline disabled:opacity-60"
+                  >
+                    Retry profile load
+                  </button>
+                )}
+              </div>
+            )}
             <button
               type="submit" disabled={busy}
               className="mt-6 w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
