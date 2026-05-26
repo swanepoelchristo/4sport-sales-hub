@@ -181,7 +181,7 @@ export const updateAccount = createServerFn({ method: "POST" })
     if (data.sportFocus !== undefined) update.sport_focus = data.sportFocus;
     if (data.active !== undefined) update.active = data.active;
 
-    const { error: upErr } = await supabaseAdmin.from("reps").update(update).eq("id", data.repId);
+    const { error: upErr } = await supabaseAdmin.from("reps").update(update as never).eq("id", data.repId);
     if (upErr) throw upErr;
 
     if (data.role && rep.user_id && data.role !== rep.role) {
