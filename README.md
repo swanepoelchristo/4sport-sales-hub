@@ -113,3 +113,39 @@ supabase/
 scripts/
   seed-admins.ts  # One-time admin seeding script
 ```
+
+---
+
+## Docker
+
+Build and run with Docker Compose:
+
+```bash
+cp .env.example .env   # fill in Supabase URL + keys
+docker compose up -d --build
+```
+
+The container exposes port `3000`. Front it with the nginx config in
+`deploy/nginx.conf.example` for TLS termination on your Ubuntu VPS.
+
+## Ubuntu VPS (manual)
+
+```bash
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
+curl -fsSL https://bun.sh/install | bash
+git clone <your-repo-url> /opt/4sport && cd /opt/4sport
+cp .env.example .env && nano .env
+bun install && bun run build
+# Run under a process manager (systemd / pm2) pointing at:
+#   bun run .output/server/index.mjs
+sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/4sport
+sudo ln -s /etc/nginx/sites-available/4sport /etc/nginx/sites-enabled/4sport
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d dashboard.4sport.co.za
+```
+
+## Coolify
+
+Point Coolify at the GitHub repo, choose **Dockerfile** as the build pack, and
+set the env vars from `.env.example` in the Coolify UI. Coolify handles TLS
+and reverse proxy automatically — the nginx example is only for bare VPS.
