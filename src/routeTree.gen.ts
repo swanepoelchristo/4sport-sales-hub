@@ -12,8 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppSignupsRouteImport } from './routes/_app.signups'
+import { Route as AppRepsRouteImport } from './routes/_app.reps'
+import { Route as AppMeetingsRouteImport } from './routes/_app.meetings'
 import { Route as AppLeadsRouteImport } from './routes/_app.leads'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppActivityRouteImport } from './routes/_app.activity'
 import { Route as AppLeadsNewRouteImport } from './routes/_app.leads.new'
 import { Route as AppLeadsLeadIdRouteImport } from './routes/_app.leads.$leadId'
 
@@ -31,6 +35,21 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSignupsRoute = AppSignupsRouteImport.update({
+  id: '/signups',
+  path: '/signups',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRepsRoute = AppRepsRouteImport.update({
+  id: '/reps',
+  path: '/reps',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMeetingsRoute = AppMeetingsRouteImport.update({
+  id: '/meetings',
+  path: '/meetings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLeadsRoute = AppLeadsRouteImport.update({
   id: '/leads',
   path: '/leads',
@@ -39,6 +58,11 @@ const AppLeadsRoute = AppLeadsRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLeadsNewRoute = AppLeadsNewRouteImport.update({
@@ -55,16 +79,24 @@ const AppLeadsLeadIdRoute = AppLeadsLeadIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
+  '/meetings': typeof AppMeetingsRoute
+  '/reps': typeof AppRepsRoute
+  '/signups': typeof AppSignupsRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/leads/new': typeof AppLeadsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
+  '/meetings': typeof AppMeetingsRoute
+  '/reps': typeof AppRepsRoute
+  '/signups': typeof AppSignupsRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/leads/new': typeof AppLeadsNewRoute
 }
@@ -73,8 +105,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/activity': typeof AppActivityRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/leads': typeof AppLeadsRouteWithChildren
+  '/_app/meetings': typeof AppMeetingsRoute
+  '/_app/reps': typeof AppRepsRoute
+  '/_app/signups': typeof AppSignupsRoute
   '/_app/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/_app/leads/new': typeof AppLeadsNewRoute
 }
@@ -83,19 +119,37 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/activity'
     | '/dashboard'
     | '/leads'
+    | '/meetings'
+    | '/reps'
+    | '/signups'
     | '/leads/$leadId'
     | '/leads/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard' | '/leads' | '/leads/$leadId' | '/leads/new'
+  to:
+    | '/'
+    | '/login'
+    | '/activity'
+    | '/dashboard'
+    | '/leads'
+    | '/meetings'
+    | '/reps'
+    | '/signups'
+    | '/leads/$leadId'
+    | '/leads/new'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/activity'
     | '/_app/dashboard'
     | '/_app/leads'
+    | '/_app/meetings'
+    | '/_app/reps'
+    | '/_app/signups'
     | '/_app/leads/$leadId'
     | '/_app/leads/new'
   fileRoutesById: FileRoutesById
@@ -129,6 +183,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/signups': {
+      id: '/_app/signups'
+      path: '/signups'
+      fullPath: '/signups'
+      preLoaderRoute: typeof AppSignupsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reps': {
+      id: '/_app/reps'
+      path: '/reps'
+      fullPath: '/reps'
+      preLoaderRoute: typeof AppRepsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/meetings': {
+      id: '/_app/meetings'
+      path: '/meetings'
+      fullPath: '/meetings'
+      preLoaderRoute: typeof AppMeetingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/leads': {
       id: '/_app/leads'
       path: '/leads'
@@ -141,6 +216,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/activity': {
+      id: '/_app/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/leads/new': {
@@ -175,13 +257,21 @@ const AppLeadsRouteWithChildren = AppLeadsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppActivityRoute: typeof AppActivityRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppLeadsRoute: typeof AppLeadsRouteWithChildren
+  AppMeetingsRoute: typeof AppMeetingsRoute
+  AppRepsRoute: typeof AppRepsRoute
+  AppSignupsRoute: typeof AppSignupsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppActivityRoute: AppActivityRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppLeadsRoute: AppLeadsRouteWithChildren,
+  AppMeetingsRoute: AppMeetingsRoute,
+  AppRepsRoute: AppRepsRoute,
+  AppSignupsRoute: AppSignupsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
