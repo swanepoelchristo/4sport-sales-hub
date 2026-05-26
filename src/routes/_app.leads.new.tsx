@@ -111,7 +111,7 @@ export function LeadForm({
           </button>
           {mode === "edit" && (
             <button type="button" onClick={remove} className="rounded-lg border border-destructive/40 px-4 py-3 text-sm font-semibold text-destructive">
-              Delete
+              Archive
             </button>
           )}
           <Link to="/leads" className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">Cancel</Link>
