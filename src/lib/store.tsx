@@ -2,6 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { pushAuthEvent } from "./auth-debug";
 import type {
   Rep, Lead, Meeting, Signup, ActivityLog, Profile, Role,
 } from "./types";
@@ -218,7 +219,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      pushAuthEvent(event, session);
+      // Skip profile reload for PASSWORD_RECOVERY — user is mid-flow, not logged in.
+      if (event === "PASSWORD_RECOVERY") return;
       // Defer to avoid deadlock with supabase client
       setTimeout(async () => {
         if (!active) return;
@@ -263,8 +267,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    // Clear any stale recovery / partial session before signing in.
+    try { await supabase.auth.signOut({ scope: "local" } as never); } catch { /* noop */ }
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error || !data.user) return { error: error?.message ?? "Invalid email or password." };
+    if (error || !data.user) return { error: error?.message ?? "Sign-in failed." };
+    // Wait for session to actually be persisted/restorable.
+    const { data: s } = await supabase.auth.getSession();
+    if (!s.session) return { error: "Signed in but no session was established. Please try again." };
     const profile = await buildProfileFromAuth(data.user);
     if (!profile) {
       await supabase.auth.signOut();

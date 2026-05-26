@@ -13,6 +13,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as BootstrapAdminRouteImport } from './routes/bootstrap-admin'
+import { Route as AuthDebugRouteImport } from './routes/auth-debug'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSystemCheckRouteImport } from './routes/_app.system-check'
@@ -44,6 +45,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const BootstrapAdminRoute = BootstrapAdminRouteImport.update({
   id: '/bootstrap-admin',
   path: '/bootstrap-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthDebugRoute = AuthDebugRouteImport.update({
+  id: '/auth-debug',
+  path: '/auth-debug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -108,6 +114,7 @@ const AppLeadsLeadIdRoute = AppLeadsLeadIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth-debug': typeof AuthDebugRoute
   '/bootstrap-admin': typeof BootstrapAdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth-debug': typeof AuthDebugRoute
   '/bootstrap-admin': typeof BootstrapAdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/auth-debug': typeof AuthDebugRoute
   '/bootstrap-admin': typeof BootstrapAdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth-debug'
     | '/bootstrap-admin'
     | '/forgot-password'
     | '/login'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth-debug'
     | '/bootstrap-admin'
     | '/forgot-password'
     | '/login'
@@ -198,6 +209,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/auth-debug'
     | '/bootstrap-admin'
     | '/forgot-password'
     | '/login'
@@ -217,6 +229,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  AuthDebugRoute: typeof AuthDebugRoute
   BootstrapAdminRoute: typeof BootstrapAdminRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -251,6 +264,13 @@ declare module '@tanstack/react-router' {
       path: '/bootstrap-admin'
       fullPath: '/bootstrap-admin'
       preLoaderRoute: typeof BootstrapAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth-debug': {
+      id: '/auth-debug'
+      path: '/auth-debug'
+      fullPath: '/auth-debug'
+      preLoaderRoute: typeof AuthDebugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -381,6 +401,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  AuthDebugRoute: AuthDebugRoute,
   BootstrapAdminRoute: BootstrapAdminRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
