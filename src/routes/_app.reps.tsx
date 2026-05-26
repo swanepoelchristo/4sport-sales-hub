@@ -16,7 +16,7 @@ function RepsPage() {
   const [editing, setEditing] = useState<Rep | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const blank: Rep = { id: "", full_name: "", email: "", phone: "", province: "Gauteng", sport_focus: "Multi-sport", role: "rep", active: true };
+  const blank: Rep = { id: "", full_name: "", email: "", phone: "", province: "Gauteng", sport_focus: "Multi-sport", role: "sales_rep", active: true };
   const [form, setForm] = useState<Rep>(blank);
 
   const open = (r: Rep | null) => {
@@ -67,7 +67,7 @@ function RepsPage() {
           </Lbl>
           <Lbl label="Role">
             <select className={inp} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-              <option value="rep">Sales Rep</option>
+              <option value="sales_rep">Sales Rep</option>
               <option value="admin">Admin</option>
             </select>
           </Lbl>
