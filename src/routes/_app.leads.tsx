@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
 import { LEAD_STATUSES, PROVINCES, SPORTS } from "@/lib/types";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
+import { exportRowsAsCsv } from "@/lib/csv";
+import { audit } from "@/lib/audit";
 
 export const Route = createFileRoute("/_app/leads")({ component: LeadsPage });
 
