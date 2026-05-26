@@ -69,12 +69,17 @@ function SystemCheckPage() {
       // 2. Profile
       update("profile", { status: "running", message: "" });
       let profileRow: any = null;
+      let roleRows: any[] = [];
       try {
-        const { data, error } = await supabase
-          .from("profiles").select("*").eq("id", u.auth_id).maybeSingle();
-        if (error) throw error;
-        if (!data) throw new Error("Profile row not found");
-        profileRow = data;
+        const [profileResult, rolesResult] = await Promise.all([
+          supabase.from("profiles").select("*").eq("id", u.auth_id).maybeSingle(),
+          supabase.from("user_roles").select("role").eq("user_id", u.auth_id),
+        ]);
+        if (profileResult.error) throw profileResult.error;
+        if (rolesResult.error) throw rolesResult.error;
+        if (!profileResult.data) throw new Error("Profile row not found");
+        profileRow = profileResult.data;
+        roleRows = rolesResult.data ?? [];
         update("profile", { status: "pass", message: `Loaded profile for ${data.email}` });
       } catch (e: any) {
         update("profile", { status: "fail", message: e?.message ?? String(e) });
@@ -82,10 +87,11 @@ function SystemCheckPage() {
 
       // 3. Role
       update("role", { status: "running", message: "" });
-      if (profileRow && profileRow.role === u.role) {
-        update("role", { status: "pass", message: `Role = ${profileRow.role}` });
+      const detectedRole = roleRows.some((r) => r.role === "admin") ? "admin" : "sales_rep";
+      if (profileRow && detectedRole === u.role) {
+        update("role", { status: "pass", message: `Role = ${detectedRole}` });
       } else {
-        update("role", { status: "fail", message: `Expected ${u.role}, got ${profileRow?.role ?? "none"}` });
+        update("role", { status: "fail", message: `Expected ${u.role}, got ${roleRows.length ? detectedRole : "none"}` });
       }
 
       // 4. Admin can read all leads
