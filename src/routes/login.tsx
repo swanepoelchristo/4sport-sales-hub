@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
 function LoginPage() {
-  const { login, retryProfileLoad, user } = useStore();
+  const { login, retryProfileLoad, finalizing, user } = useStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -101,7 +101,13 @@ function LoginPage() {
                 placeholder="••••••••" autoComplete="current-password"
               />
             </label>
-            {error && (
+            {finalizing && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span>Finalizing session…</span>
+              </div>
+            )}
+            {error && !finalizing && (
               <div className="mt-3 space-y-2">
                 <p className="text-sm text-destructive">{error}</p>
                 {error === PROFILE_LOAD_ERROR && (
@@ -116,6 +122,7 @@ function LoginPage() {
                 )}
               </div>
             )}
+
             <button
               type="submit" disabled={busy}
               className="mt-6 w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"

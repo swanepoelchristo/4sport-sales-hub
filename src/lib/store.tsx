@@ -21,6 +21,7 @@ interface Ctx {
   state: State;
   user: Profile | null;
   loading: boolean;
+  finalizing: boolean;
   login: (email: string, password: string) => Promise<Profile | { error: string }>;
   retryProfileLoad: () => Promise<Profile | { error: string }>;
   logout: () => Promise<void>;
@@ -174,6 +175,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setStateInner] = useState<State>(emptyState);
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [finalizing, setFinalizing] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -198,37 +200,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const buildProfileFromSession = useCallback(async (): Promise<Profile | null> => {
-    let session = null;
-    for (let i = 0; i < 5; i++) {
-      const { data: sd } = await supabase.auth.getSession();
-      if (sd.session?.access_token && sd.session.user) {
-        session = sd.session;
-        break;
-      }
-      console.warn(`[session.hydrate] no access_token, attempt ${i + 1}/5`);
-      await new Promise((r) => setTimeout(r, 300));
+  // Returns: Profile (success) | "empty" (auth ok but profile row not returned) | null (no session)
+  const buildProfileFromSession = useCallback(async (): Promise<Profile | "empty" | null> => {
+    // 1. Auth-ready gate
+    const { data: sd } = await supabase.auth.getSession();
+    const session = sd.session;
+    if (!session?.access_token || !session.user) {
+      console.warn("[profile.query.start]", { hasSession: false, hasToken: false });
+      return null;
     }
-    if (!session?.access_token || !session.user) return null;
+    // THEN wait 1000ms before querying profile
+    await new Promise((r) => setTimeout(r, 1000));
 
-    await new Promise((r) => setTimeout(r, 500));
     const authUser = session.user;
-    let prof: any = null;
-    let profErr: any = null;
-    for (let i = 0; i < 3; i++) {
-      const res = await supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
-      profErr = res.error;
-      prof = res.data;
-      console.warn(`[profile.retry.${i + 1}]`, { found: !!prof, error: profErr?.message ?? null });
-      if (prof || profErr) break;
-      await new Promise((r) => setTimeout(r, 500));
+    console.log("[profile.query.start]", {
+      userId: authUser.id,
+      hasJwt: !!session.access_token,
+      tokenLen: session.access_token.length,
+    });
+
+    // 2. Query with .limit(1) (no maybeSingle)
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", authUser.id)
+      .limit(1);
+
+    if (error) {
+      console.error("[profile.query.error]", {
+        message: error.message,
+        code: (error as any).code,
+        details: (error as any).details,
+        hasJwt: !!session.access_token,
+      });
+      return "empty";
     }
+    if (!data || data.length === 0) {
+      console.warn("[profile.query.empty]", { userId: authUser.id, hasJwt: !!session.access_token });
+      return "empty";
+    }
+    const prof = data[0];
+    console.log("[profile.query.success]", { id: prof.id, email: prof.email });
+
     const { data: roles, error: rolesErr } = await supabase
       .from("user_roles").select("role").eq("user_id", authUser.id);
-    if (profErr) console.warn("[profile.lookup.error]", profErr.message);
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
-    if (!prof) return null;
-    // reps links via reps.user_id = auth.users.id (profiles.id = auth.users.id).
     const { data: rep } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
     const roleList = roles ?? [];
@@ -241,6 +257,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       role,
     };
   }, []);
+
+  // Resolve profile with one silent retry after 1500ms if first attempt is empty.
+  const resolveProfile = useCallback(async (): Promise<Profile | "empty" | null> => {
+    const first = await buildProfileFromSession();
+    if (first === "empty") {
+      setFinalizing(true);
+      await new Promise((r) => setTimeout(r, 1500));
+      const second = await buildProfileFromSession();
+      setFinalizing(false);
+      return second;
+    }
+    return first;
+  }, [buildProfileFromSession]);
+
+
 
 
   useEffect(() => {
@@ -262,10 +293,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Defer to avoid deadlock with supabase client
       setTimeout(async () => {
         if (!active) return;
-        const profile = await buildProfileFromSession();
+        const profile = await resolveProfile();
         if (!active) return;
-        setUser(profile);
-        if (profile) await loadAll(profile);
+        if (profile && profile !== "empty") {
+          setUser(profile);
+          await loadAll(profile);
+        } else {
+          setUser(null);
+        }
         setLoading(false);
       }, 0);
     });
@@ -274,15 +309,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       if (!data.session?.user) { setLoading(false); return; }
-      const profile = await buildProfileFromSession();
+      const profile = await resolveProfile();
       if (!active) return;
-      setUser(profile);
-      if (profile) await loadAll(profile);
+      if (profile && profile !== "empty") {
+        setUser(profile);
+        await loadAll(profile);
+      }
       setLoading(false);
     })();
 
     return () => { active = false; sub.subscription.unsubscribe(); };
-  }, [buildProfileFromSession, loadAll]);
+  }, [resolveProfile, loadAll]);
 
   const setState = useCallback((updater: (s: State) => State) => {
     setStateInner((prev) => {
@@ -296,27 +333,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<Profile | { error: string }> => {
     // Clear any stale recovery / partial session before signing in.
     try { await supabase.auth.signOut({ scope: "local" } as never); } catch { /* noop */ }
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error || !data.user) return { error: error?.message ?? "Sign-in failed." };
-    const profile = await buildProfileFromSession();
-    if (!profile) {
+    const profile = await resolveProfile();
+    if (!profile || profile === "empty") {
       return { error: PROFILE_LOAD_ERROR };
     }
     setUser(profile);
     await loadAll(profile);
     return profile;
-  }, [buildProfileFromSession, loadAll]);
+  }, [resolveProfile, loadAll]);
 
-  const retryProfileLoad = useCallback(async () => {
-    const profile = await buildProfileFromSession();
-    if (!profile) return { error: PROFILE_LOAD_ERROR };
+  const retryProfileLoad = useCallback(async (): Promise<Profile | { error: string }> => {
+    const profile = await resolveProfile();
+    if (!profile || profile === "empty") return { error: PROFILE_LOAD_ERROR };
     setUser(profile);
     await loadAll(profile);
     return profile;
-  }, [buildProfileFromSession, loadAll]);
+  }, [resolveProfile, loadAll]);
+
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -351,7 +389,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <StoreContext.Provider value={{ state, user, loading, login, retryProfileLoad, logout, setState, addActivity, uid }}>
+    <StoreContext.Provider value={{ state, user, loading, finalizing, login, retryProfileLoad, logout, setState, addActivity, uid }}>
       {children}
     </StoreContext.Provider>
   );
