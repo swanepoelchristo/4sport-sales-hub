@@ -293,10 +293,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Defer to avoid deadlock with supabase client
       setTimeout(async () => {
         if (!active) return;
-        const profile = await buildProfileFromSession();
+        const profile = await resolveProfile();
         if (!active) return;
-        setUser(profile);
-        if (profile) await loadAll(profile);
+        if (profile && profile !== "empty") {
+          setUser(profile);
+          await loadAll(profile);
+        } else {
+          setUser(null);
+        }
         setLoading(false);
       }, 0);
     });
@@ -305,15 +309,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       if (!data.session?.user) { setLoading(false); return; }
-      const profile = await buildProfileFromSession();
+      const profile = await resolveProfile();
       if (!active) return;
-      setUser(profile);
-      if (profile) await loadAll(profile);
+      if (profile && profile !== "empty") {
+        setUser(profile);
+        await loadAll(profile);
+      }
       setLoading(false);
     })();
 
     return () => { active = false; sub.subscription.unsubscribe(); };
-  }, [buildProfileFromSession, loadAll]);
+  }, [resolveProfile, loadAll]);
 
   const setState = useCallback((updater: (s: State) => State) => {
     setStateInner((prev) => {
@@ -327,27 +333,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<Profile | { error: string }> => {
     // Clear any stale recovery / partial session before signing in.
     try { await supabase.auth.signOut({ scope: "local" } as never); } catch { /* noop */ }
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error || !data.user) return { error: error?.message ?? "Sign-in failed." };
-    const profile = await buildProfileFromSession();
-    if (!profile) {
+    const profile = await resolveProfile();
+    if (!profile || profile === "empty") {
       return { error: PROFILE_LOAD_ERROR };
     }
     setUser(profile);
     await loadAll(profile);
     return profile;
-  }, [buildProfileFromSession, loadAll]);
+  }, [resolveProfile, loadAll]);
 
-  const retryProfileLoad = useCallback(async () => {
-    const profile = await buildProfileFromSession();
-    if (!profile) return { error: PROFILE_LOAD_ERROR };
+  const retryProfileLoad = useCallback(async (): Promise<Profile | { error: string }> => {
+    const profile = await resolveProfile();
+    if (!profile || profile === "empty") return { error: PROFILE_LOAD_ERROR };
     setUser(profile);
     await loadAll(profile);
     return profile;
-  }, [buildProfileFromSession, loadAll]);
+  }, [resolveProfile, loadAll]);
+
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
