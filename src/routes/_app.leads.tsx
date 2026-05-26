@@ -48,9 +48,22 @@ function LeadsPage() {
         title="Leads"
         subtitle={isAdmin ? "All schools, clubs and academies." : "Leads assigned to you."}
         action={
-          <Link to="/leads/new" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">
-            <Plus className="h-4 w-4" /> New lead
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  exportRowsAsCsv(`leads-${new Date().toISOString().slice(0,10)}.csv`, leads);
+                  void audit("export.csv", `leads (${leads.length})`);
+                }}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-semibold"
+              >
+                <Download className="h-4 w-4" /> Export CSV
+              </button>
+            )}
+            <Link to="/leads/new" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">
+              <Plus className="h-4 w-4" /> New lead
+            </Link>
+          </div>
         }
       />
 
