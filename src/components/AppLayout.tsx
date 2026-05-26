@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Logo } from "./Logo";
 import {
-  LayoutDashboard, Users, Calendar, Building2, Banknote, UserCog, History, LogOut,
+  LayoutDashboard, Users, Calendar, Building2, Banknote, UserCog, History, LogOut, ShieldCheck,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { to: "/signups", label: "Signups", icon: Banknote },
   { to: "/reps", label: "Reps", icon: UserCog, adminOnly: true },
   { to: "/activity", label: "Activity", icon: History, adminOnly: true },
+  { to: "/system-check", label: "System", icon: ShieldCheck, adminOnly: true },
 ];
 
 export function AppLayout() {
