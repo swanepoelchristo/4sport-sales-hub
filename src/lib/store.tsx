@@ -21,6 +21,7 @@ interface Ctx {
   state: State;
   user: Profile | null;
   loading: boolean;
+  finalizing: boolean;
   login: (email: string, password: string) => Promise<Profile | { error: string }>;
   retryProfileLoad: () => Promise<Profile | { error: string }>;
   logout: () => Promise<void>;
