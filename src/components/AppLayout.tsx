@@ -35,6 +35,7 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen brand-gradient-bg flex flex-col">
+      <IdleTimer />
       <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/dashboard" className="flex items-center gap-3">
