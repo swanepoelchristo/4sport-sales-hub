@@ -47,6 +47,8 @@ function SystemCheckPage() {
     setChecks((c) => c.map((x) => (x.id === id ? { ...x, ...patch, at: new Date().toISOString() } : x)));
 
   async function run() {
+    const u = user;
+    if (!u) return;
     setRunning(true);
     setChecks(INITIAL.map((c) => ({ ...c, status: "pending", message: "", at: null })));
 
