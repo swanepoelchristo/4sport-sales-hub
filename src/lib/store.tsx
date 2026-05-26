@@ -31,7 +31,7 @@ interface Ctx {
 }
 
 const StoreContext = createContext<Ctx | null>(null);
-export const PROFILE_LOAD_ERROR = "Profile could not be loaded. Please refresh or contact admin.";
+export const PROFILE_LOAD_ERROR = "Profile could not be loaded. Please refresh.";
 
 // ---------- Row mappers (DB <-> domain) ----------
 const repFromRow = (r: any): Rep => ({
@@ -202,58 +202,57 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Returns: Profile (success) | "empty" (auth ok but profile row not returned) | null (no session)
   const buildProfileFromSession = useCallback(async (): Promise<Profile | "empty" | null> => {
-    // 1. Auth-ready gate
-    const { data: sd } = await supabase.auth.getSession();
-    const session = sd.session;
-    if (!session?.access_token || !session.user) {
-      console.warn("[profile.query.start]", { hasSession: false, hasToken: false });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    console.log("[session.check]", {
+      hasSession: !!session,
+      hasAccessToken: !!session?.access_token,
+      userId: session?.user?.id,
+    });
+
+    if (!session?.access_token) {
+      console.warn("[session.missing]");
       return null;
     }
-    // THEN wait 1000ms before querying profile
+
     await new Promise((r) => setTimeout(r, 1000));
 
     const authUser = session.user;
-    console.log("[profile.query.start]", {
-      userId: authUser.id,
-      hasJwt: !!session.access_token,
-      tokenLen: session.access_token.length,
-    });
-
-    // 2. Query with .limit(1) (no maybeSingle)
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", authUser.id)
       .limit(1);
 
+    console.log("[profile.query.result]", {
+      data,
+      error,
+    });
+
+    const profile = data?.[0] ?? null;
+
     if (error) {
-      console.error("[profile.query.error]", {
-        message: error.message,
-        code: (error as any).code,
-        details: (error as any).details,
-        hasJwt: !!session.access_token,
-      });
       return "empty";
     }
-    if (!data || data.length === 0) {
-      console.warn("[profile.query.empty]", { userId: authUser.id, hasJwt: !!session.access_token });
+    if (!profile) {
       return "empty";
     }
-    const prof = data[0];
-    console.log("[profile.query.success]", { id: prof.id, email: prof.email });
 
     const { data: roles, error: rolesErr } = await supabase
       .from("user_roles").select("role").eq("user_id", authUser.id);
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
-    const { data: rep } = await supabase
-      .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
+    const { data: repRows } = await supabase
+      .from("reps").select("id").eq("user_id", authUser.id).limit(1);
+    const rep = repRows?.[0] ?? null;
     const roleList = roles ?? [];
     const role = roleList.some((r: any) => r.role === "admin") ? "admin" : "sales_rep";
     return {
       id: rep?.id ?? "",
       auth_id: authUser.id,
-      full_name: prof.full_name || prof.email,
-      email: prof.email,
+      full_name: profile.full_name || profile.email,
+      email: profile.email,
       role,
     };
   }, []);
