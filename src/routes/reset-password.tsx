@@ -110,14 +110,25 @@ function ResetPasswordPage() {
     setBusy(true);
     const { data, error } = await supabase.auth.updateUser({ password });
     console.log(LOG, "updateUser result", { ok: !error, userId: data?.user?.id, error: error?.message });
-    setBusy(false);
     if (error) {
+      setBusy(false);
       setErr(error.message);
       toast.error(`Password update failed: ${error.message}`);
       return;
     }
-    toast.success("Password updated. Please sign in with your new password.");
+    // Force fresh tokens, then require a clean sign-in.
+    try { await supabase.auth.refreshSession(); } catch { /* noop */ }
     await supabase.auth.signOut();
+    // Clear any leftover PKCE verifier from the recovery flow.
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith("sb-") && k.endsWith("-auth-token-code-verifier")) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch { /* noop */ }
+    setBusy(false);
+    toast.success("Password updated. Please sign in with your new password.");
     navigate({ to: "/login", replace: true });
   };
 
