@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { commissionAmount, commissionQualified, type Signup } from "@/lib/types";
 import { PageHeader, StatusBadge } from "@/components/ui-bits";
 import { Play, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { listAccounts, inviteAccount, sendPasswordReset } from "@/lib/accounts.functions";
 
 export const Route = createFileRoute("/_app/system-check")({ component: SystemCheckPage });
 
