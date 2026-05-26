@@ -267,8 +267,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    // Clear any stale recovery / partial session before signing in.
+    try { await supabase.auth.signOut({ scope: "local" } as never); } catch { /* noop */ }
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error || !data.user) return { error: error?.message ?? "Invalid email or password." };
+    if (error || !data.user) return { error: error?.message ?? "Sign-in failed." };
+    // Wait for session to actually be persisted/restorable.
+    const { data: s } = await supabase.auth.getSession();
+    if (!s.session) return { error: "Signed in but no session was established. Please try again." };
     const profile = await buildProfileFromAuth(data.user);
     if (!profile) {
       await supabase.auth.signOut();
