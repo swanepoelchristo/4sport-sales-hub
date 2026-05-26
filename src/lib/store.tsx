@@ -249,7 +249,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       pushAuthEvent(event, session);
       // Gate: only run profile lookup on real sign-in transitions.
-      // INITIAL_SESSION is handled by the bootstrap block below.
+      // INITIAL_SESSION is handled by the session bootstrap below.
       // PASSWORD_RECOVERY / SIGNED_OUT must never trigger a profile query.
       if (event === "PASSWORD_RECOVERY" || event === "INITIAL_SESSION") return;
       if (event === "SIGNED_OUT" || !session?.user) {
@@ -262,7 +262,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Defer to avoid deadlock with supabase client
       setTimeout(async () => {
         if (!active) return;
-        const profile = await buildProfileFromAuth(session.user);
+        const profile = await buildProfileFromSession();
         if (!active) return;
         setUser(profile);
         if (profile) await loadAll(profile);
@@ -274,7 +274,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       if (!data.session?.user) { setLoading(false); return; }
-      const profile = await buildProfileFromAuth(data.session.user);
+      const profile = await buildProfileFromSession();
       if (!active) return;
       setUser(profile);
       if (profile) await loadAll(profile);
@@ -282,7 +282,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     })();
 
     return () => { active = false; sub.subscription.unsubscribe(); };
-  }, [buildProfileFromAuth, loadAll]);
+  }, [buildProfileFromSession, loadAll]);
 
   const setState = useCallback((updater: (s: State) => State) => {
     setStateInner((prev) => {
@@ -301,18 +301,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try { await supabase.auth.signOut({ scope: "local" } as never); } catch { /* noop */ }
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error || !data.user) return { error: error?.message ?? "Sign-in failed." };
-    // Wait for session to actually be persisted/restorable.
-    const { data: s } = await supabase.auth.getSession();
-    if (!s.session) return { error: "Signed in but no session was established. Please try again." };
-    const profile = await buildProfileFromAuth(data.user);
+    const profile = await buildProfileFromSession();
     if (!profile) {
-      await supabase.auth.signOut();
-      return { error: "Establishing secure session… profile lookup failed after retries. Please try again." };
+      return { error: PROFILE_LOAD_ERROR };
     }
     setUser(profile);
     await loadAll(profile);
     return profile;
-  }, [buildProfileFromAuth, loadAll]);
+  }, [buildProfileFromSession, loadAll]);
+
+  const retryProfileLoad = useCallback(async () => {
+    const profile = await buildProfileFromSession();
+    if (!profile) return { error: PROFILE_LOAD_ERROR };
+    setUser(profile);
+    await loadAll(profile);
+    return profile;
+  }, [buildProfileFromSession, loadAll]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -347,7 +351,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <StoreContext.Provider value={{ state, user, loading, login, logout, setState, addActivity, uid }}>
+    <StoreContext.Provider value={{ state, user, loading, login, retryProfileLoad, logout, setState, addActivity, uid }}>
       {children}
     </StoreContext.Provider>
   );
