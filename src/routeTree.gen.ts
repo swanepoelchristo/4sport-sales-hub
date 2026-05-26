@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppSystemCheckRouteImport } from './routes/_app.system-check'
 import { Route as AppSignupsRouteImport } from './routes/_app.signups'
 import { Route as AppRepsRouteImport } from './routes/_app.reps'
 import { Route as AppMeetingsRouteImport } from './routes/_app.meetings'
@@ -34,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppSystemCheckRoute = AppSystemCheckRouteImport.update({
+  id: '/system-check',
+  path: '/system-check',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSignupsRoute = AppSignupsRouteImport.update({
   id: '/signups',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/meetings': typeof AppMeetingsRoute
   '/reps': typeof AppRepsRoute
   '/signups': typeof AppSignupsRoute
+  '/system-check': typeof AppSystemCheckRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/leads/new': typeof AppLeadsNewRoute
 }
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/meetings': typeof AppMeetingsRoute
   '/reps': typeof AppRepsRoute
   '/signups': typeof AppSignupsRoute
+  '/system-check': typeof AppSystemCheckRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/leads/new': typeof AppLeadsNewRoute
 }
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/_app/meetings': typeof AppMeetingsRoute
   '/_app/reps': typeof AppRepsRoute
   '/_app/signups': typeof AppSignupsRoute
+  '/_app/system-check': typeof AppSystemCheckRoute
   '/_app/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/_app/leads/new': typeof AppLeadsNewRoute
 }
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/meetings'
     | '/reps'
     | '/signups'
+    | '/system-check'
     | '/leads/$leadId'
     | '/leads/new'
   fileRoutesByTo: FileRoutesByTo
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/meetings'
     | '/reps'
     | '/signups'
+    | '/system-check'
     | '/leads/$leadId'
     | '/leads/new'
   id:
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/_app/meetings'
     | '/_app/reps'
     | '/_app/signups'
+    | '/_app/system-check'
     | '/_app/leads/$leadId'
     | '/_app/leads/new'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/system-check': {
+      id: '/_app/system-check'
+      path: '/system-check'
+      fullPath: '/system-check'
+      preLoaderRoute: typeof AppSystemCheckRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/signups': {
       id: '/_app/signups'
@@ -263,6 +282,7 @@ interface AppRouteChildren {
   AppMeetingsRoute: typeof AppMeetingsRoute
   AppRepsRoute: typeof AppRepsRoute
   AppSignupsRoute: typeof AppSignupsRoute
+  AppSystemCheckRoute: typeof AppSystemCheckRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -272,6 +292,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMeetingsRoute: AppMeetingsRoute,
   AppRepsRoute: AppRepsRoute,
   AppSignupsRoute: AppSignupsRoute,
+  AppSystemCheckRoute: AppSystemCheckRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -284,13 +305,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
