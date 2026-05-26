@@ -56,8 +56,11 @@ export type Database = {
       commissions: {
         Row: {
           amount: number
+          archived: boolean
           commission_year: Database["public"]["Enums"]["commission_year"]
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           qualified: boolean
           rep_id: string | null
@@ -67,8 +70,11 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          archived?: boolean
           commission_year: Database["public"]["Enums"]["commission_year"]
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           qualified?: boolean
           rep_id?: string | null
@@ -78,8 +84,11 @@ export type Database = {
         }
         Update: {
           amount?: number
+          archived?: boolean
           commission_year?: Database["public"]["Enums"]["commission_year"]
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           qualified?: boolean
           rep_id?: string | null
@@ -104,13 +113,49 @@ export type Database = {
           },
         ]
       }
+      lead_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          lead_id: string
+          mime_type: string
+          size_bytes: number
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          lead_id: string
+          mime_type?: string
+          size_bytes?: number
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          lead_id?: string
+          mime_type?: string
+          size_bytes?: number
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
+          archived: boolean
           assigned_rep_id: string | null
           city: string
           contact_person: string
           contact_role: string
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           email: string
           id: string
           lead_source: string
@@ -126,11 +171,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean
           assigned_rep_id?: string | null
           city?: string
           contact_person?: string
           contact_role?: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string
           id?: string
           lead_source?: string
@@ -146,11 +194,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean
           assigned_rep_id?: string | null
           city?: string
           contact_person?: string
           contact_role?: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string
           id?: string
           lead_source?: string
@@ -177,7 +228,10 @@ export type Database = {
       }
       meetings: {
         Row: {
+          archived: boolean
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           lead_id: string
           meeting_at: string
@@ -190,7 +244,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           lead_id: string
           meeting_at: string
@@ -203,7 +260,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           lead_id?: string
           meeting_at?: string
@@ -262,12 +322,16 @@ export type Database = {
       reps: {
         Row: {
           active: boolean
+          archived: boolean
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           email: string
           full_name: string
           id: string
           phone: string
           province: string
+          region_manager_id: string | null
           role: Database["public"]["Enums"]["app_role"]
           sport_focus: string
           updated_at: string
@@ -275,12 +339,16 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          archived?: boolean
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email: string
           full_name: string
           id?: string
           phone?: string
           province?: string
+          region_manager_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           sport_focus?: string
           updated_at?: string
@@ -288,12 +356,16 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          archived?: boolean
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string
           full_name?: string
           id?: string
           phone?: string
           province?: string
+          region_manager_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           sport_focus?: string
           updated_at?: string
@@ -305,9 +377,12 @@ export type Database = {
         Row: {
           active_teams: number
           admin_notes: string
+          archived: boolean
           commission_payment_status: Database["public"]["Enums"]["commission_payment_status"]
           commission_year: Database["public"]["Enums"]["commission_year"]
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           lead_id: string
           paid: boolean
@@ -320,9 +395,12 @@ export type Database = {
         Insert: {
           active_teams?: number
           admin_notes?: string
+          archived?: boolean
           commission_payment_status?: Database["public"]["Enums"]["commission_payment_status"]
           commission_year?: Database["public"]["Enums"]["commission_year"]
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           lead_id: string
           paid?: boolean
@@ -335,9 +413,12 @@ export type Database = {
         Update: {
           active_teams?: number
           admin_notes?: string
+          archived?: boolean
           commission_payment_status?: Database["public"]["Enums"]["commission_payment_status"]
           commission_year?: Database["public"]["Enums"]["commission_year"]
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           lead_id?: string
           paid?: boolean

@@ -2,8 +2,9 @@ import { Link, useNavigate, useRouterState, Outlet } from "@tanstack/react-route
 import { useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Logo } from "./Logo";
+import { IdleTimer } from "./IdleTimer";
 import {
-  LayoutDashboard, Users, Calendar, Building2, Banknote, UserCog, History, LogOut, ShieldCheck,
+  LayoutDashboard, Users, Calendar, Building2, Banknote, UserCog, History, LogOut, ShieldCheck, BarChart3,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
@@ -13,6 +14,7 @@ const NAV: NavItem[] = [
   { to: "/leads", label: "Leads", icon: Building2 },
   { to: "/meetings", label: "Meetings", icon: Calendar },
   { to: "/signups", label: "Signups", icon: Banknote },
+  { to: "/performance", label: "Performance", icon: BarChart3, adminOnly: true },
   { to: "/reps", label: "Reps", icon: UserCog, adminOnly: true },
   { to: "/activity", label: "Activity", icon: History, adminOnly: true },
   { to: "/system-check", label: "System", icon: ShieldCheck, adminOnly: true },
@@ -33,6 +35,7 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen brand-gradient-bg flex flex-col">
+      <IdleTimer />
       <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/dashboard" className="flex items-center gap-3">

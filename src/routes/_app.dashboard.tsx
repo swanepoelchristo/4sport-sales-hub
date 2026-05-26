@@ -41,6 +41,8 @@ function Dashboard() {
   const completed = meetings.filter((m) => m.status === "Completed").length;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+
   const upcoming = [...meetings]
     .filter((m) => m.status === "Scheduled" && new Date(m.meeting_at) >= today)
     .sort((a, b) => +new Date(a.meeting_at) - +new Date(b.meeting_at))
@@ -50,6 +52,20 @@ function Dashboard() {
     .filter((l) => l.next_follow_up && new Date(l.next_follow_up) >= today)
     .sort((a, b) => +new Date(a.next_follow_up!) - +new Date(b.next_follow_up!))
     .slice(0, 6);
+
+  // === Notifications ===
+  const followUpsDueToday = leads.filter((l) => {
+    if (!l.next_follow_up) return false;
+    const d = new Date(l.next_follow_up);
+    return d >= today && d < tomorrow;
+  }).length;
+  const overdueMeetings = meetings.filter(
+    (m) => m.status === "Scheduled" && new Date(m.meeting_at) < today,
+  ).length;
+  const awaitingPayment = signups.filter((s) => !s.paid).length;
+  const commissionAwaitingPayout = signups.filter(
+    (s) => commissionQualified(s) && s.commission_payment_status !== "Paid",
+  ).length;
 
   const leadById = (id: string) => state.leads.find((l) => l.id === id);
   const repById = (id: string) => state.reps.find((r) => r.id === id);
@@ -62,6 +78,14 @@ function Dashboard() {
         title={isAdmin ? "Admin Dashboard" : `Welcome, ${user.full_name.split(" ")[0]}`}
         subtitle={isAdmin ? "Full visibility across reps, leads and commissions." : "Your pipeline at a glance."}
       />
+
+      {/* Notifications strip */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <NotifTile to="/leads" label="Follow-ups due today" value={followUpsDueToday} tone="warning" />
+        <NotifTile to="/meetings" label="Meetings overdue" value={overdueMeetings} tone="danger" />
+        <NotifTile to="/signups" label="Awaiting payment" value={awaitingPayment} tone="info" />
+        <NotifTile to="/signups" label="Commission to pay out" value={commissionAwaitingPayout} tone="success" />
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <KpiCard label="Total leads" value={leads.length} />
@@ -208,5 +232,25 @@ function Dashboard() {
         </Section>
       )}
     </>
+  );
+}
+
+function NotifTile({
+  to, label, value, tone,
+}: { to: string; label: string; value: number; tone: "warning" | "danger" | "info" | "success" }) {
+  const toneClass = {
+    warning: "text-warning",
+    danger: "text-destructive",
+    info: "text-primary",
+    success: "text-success",
+  }[tone];
+  return (
+    <Link
+      to={to}
+      className="block rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40"
+    >
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={`mt-2 font-display text-2xl ${toneClass}`}>{value}</p>
+    </Link>
   );
 }

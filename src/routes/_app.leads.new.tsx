@@ -46,9 +46,9 @@ export function LeadForm({
 
   const remove = () => {
     if (!leadId) return;
-    if (!confirm("Delete this lead?")) return;
+    if (!confirm("Archive this lead? It will be hidden but kept in the database.")) return;
     setState((s) => ({ ...s, leads: s.leads.filter((l) => l.id !== leadId) }));
-    addActivity("Lead deleted", form.org_name);
+    addActivity("Lead archived", form.org_name);
     navigate({ to: "/leads" });
   };
 
@@ -111,7 +111,7 @@ export function LeadForm({
           </button>
           {mode === "edit" && (
             <button type="button" onClick={remove} className="rounded-lg border border-destructive/40 px-4 py-3 text-sm font-semibold text-destructive">
-              Delete
+              Archive
             </button>
           )}
           <Link to="/leads" className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">Cancel</Link>

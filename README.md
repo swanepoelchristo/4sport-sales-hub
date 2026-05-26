@@ -213,3 +213,46 @@ fake data into the live UI.
 - Re-run `/system-check` — Activity log should record the cleanup actions.
 
 
+
+## Phase 4 — Operational Hardening
+
+### Backups
+- Lovable Cloud (Supabase) runs automatic daily backups; for self-hosted production take a manual snapshot before each deploy: `pg_dump "$SUPABASE_DB_URL" > backup-$(date +%F).sql`.
+- Store backups off-server (S3, Backblaze, etc.). Retain 30 days minimum.
+- Storage bucket `lead-attachments` is private — back it up with `rclone sync` or the Supabase storage API.
+
+### Docker update procedure
+```
+git pull
+docker compose pull
+docker compose up -d --build
+docker compose logs -f --tail=100 web
+```
+
+### Ubuntu update procedure
+```
+sudo apt update && sudo apt upgrade -y
+sudo certbot renew --quiet
+sudo systemctl restart 4sport-dashboard nginx
+```
+
+### Production deployment checklist
+- [ ] `.env` populated with real `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] Admin seed script run (`bun scripts/seed-admins.ts`)
+- [ ] `/system-check` shows all green when logged in as admin
+- [ ] HTTPS via Let's Encrypt active and auto-renewing
+- [ ] Database backup job scheduled
+- [ ] Storage bucket backup scheduled
+- [ ] Nginx reverse proxy active, port 3000 not exposed publicly
+- [ ] At least one real sales rep account created and tested
+
+### Operational features added in Phase 4
+- Dashboard notifications (follow-ups due today, overdue meetings, awaiting payment, commission to pay out)
+- Admin **Performance** page with per-rep KPIs, conversion %, and province breakdown
+- CSV export (admin) on Leads + Performance
+- File attachments per lead (PDFs, photos, agreements, quotes) — stored in private `lead-attachments` bucket
+- Timeline per lead (notes, meetings, signups, activity)
+- Soft-delete: all "delete" actions archive rows (`archived=true`, `deleted_at`, `deleted_by`); records are never lost
+- Cockpit audit logging via `src/lib/audit.ts` (login.success, exports, attachment uploads, etc.)
+- Auto sign-out after 30 minutes of inactivity (`IdleTimer`)
+- Future-proofing scaffolds: `src/lib/notifications/` (WhatsApp/email channels) and `src/lib/workflows/` (onboarding + commission approval stages)

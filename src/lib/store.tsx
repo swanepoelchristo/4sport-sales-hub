@@ -100,6 +100,8 @@ const activityFromRow = (r: any): ActivityLog => ({
 // ---------- Diff to DB ----------
 function eq(a: any, b: any) { return JSON.stringify(a) === JSON.stringify(b); }
 
+// NOTE: We never hard-delete via diff sync. Removals from local state
+// translate to soft-archive in DB (archived=true, deleted_at, deleted_by).
 async function syncTable<T extends { id: string }>(
   table: "reps" | "leads" | "meetings" | "signups",
   oldList: T[],
@@ -113,16 +115,20 @@ async function syncTable<T extends { id: string }>(
     const o = oldMap.get(id);
     if (!o || !eq(o, n)) upserts.push(toRow(n));
   }
-  const deletes: string[] = [];
-  for (const id of oldMap.keys()) if (!newMap.has(id)) deletes.push(id);
+  const archives: string[] = [];
+  for (const id of oldMap.keys()) if (!newMap.has(id)) archives.push(id);
 
   if (upserts.length) {
     const { error } = await supabase.from(table).upsert(upserts);
     if (error) console.error(`[sync ${table} upsert]`, error);
   }
-  if (deletes.length) {
-    const { error } = await supabase.from(table).delete().in("id", deletes);
-    if (error) console.error(`[sync ${table} delete]`, error);
+  if (archives.length) {
+    const { data: { user: au } } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from(table)
+      .update({ archived: true, deleted_at: new Date().toISOString(), deleted_by: au?.id ?? null })
+      .in("id", archives);
+    if (error) console.error(`[sync ${table} archive]`, error);
   }
 }
 
@@ -163,10 +169,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const loadAll = useCallback(async (profile: Profile) => {
     const [reps, leads, meetings, signups, activity] = await Promise.all([
-      supabase.from("reps").select("*").order("full_name"),
-      supabase.from("leads").select("*").order("created_at", { ascending: false }),
-      supabase.from("meetings").select("*").order("meeting_at", { ascending: false }),
-      supabase.from("signups").select("*").order("created_at", { ascending: false }),
+      supabase.from("reps").select("*").eq("archived", false).order("full_name"),
+      supabase.from("leads").select("*").eq("archived", false).order("created_at", { ascending: false }),
+      supabase.from("meetings").select("*").eq("archived", false).order("meeting_at", { ascending: false }),
+      supabase.from("signups").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(500),
     ]);
     setStateInner({
@@ -176,7 +182,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signups: (signups.data ?? []).map(signupFromRow),
       activity: (activity.data ?? []).map(activityFromRow),
     });
-    // Profile.id needs to be the linked rep id (for filter parity with assigned_rep_id / rep_id)
     if (!profile.id) {
       const mine = (reps.data ?? []).find((r: any) => r.user_id === profile.auth_id);
       if (mine) setUser({ ...profile, id: mine.id });

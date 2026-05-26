@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Logo } from "@/components/Logo";
+import { audit } from "@/lib/audit";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
@@ -21,9 +22,16 @@ function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const result = await login(email.trim(), password);
+    const trimmed = email.trim();
+    const result = await login(trimmed, password);
     setBusy(false);
-    if ("error" in result) { setError(result.error); return; }
+    if ("error" in result) {
+      setError(result.error);
+      // Failed login can't write under user's auth.uid() (none yet) — log client-side only.
+      console.warn("[login.failed]", trimmed, result.error);
+      return;
+    }
+    void audit("login.success", trimmed);
     navigate({ to: "/dashboard" });
   };
 
