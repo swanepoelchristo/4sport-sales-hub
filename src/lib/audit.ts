@@ -36,8 +36,8 @@ export async function audit(
       detail,
       entity_type: opts?.entityType ?? "",
       entity_id: opts?.entityId ?? null,
-      old_value: opts?.oldValue ?? null,
-      new_value: opts?.newValue ?? null,
+      old_value: (opts?.oldValue ?? null) as never,
+      new_value: (opts?.newValue ?? null) as never,
     });
   } catch (e) {
     console.error("[audit]", e);
