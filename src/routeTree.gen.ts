@@ -9,7 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as BootstrapAdminRouteImport } from './routes/bootstrap-admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSystemCheckRouteImport } from './routes/_app.system-check'
@@ -23,9 +26,24 @@ import { Route as AppActivityRouteImport } from './routes/_app.activity'
 import { Route as AppLeadsNewRouteImport } from './routes/_app.leads.new'
 import { Route as AppLeadsLeadIdRouteImport } from './routes/_app.leads.$leadId'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BootstrapAdminRoute = BootstrapAdminRouteImport.update({
+  id: '/bootstrap-admin',
+  path: '/bootstrap-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -90,7 +108,10 @@ const AppLeadsLeadIdRoute = AppLeadsLeadIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bootstrap-admin': typeof BootstrapAdminRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
@@ -104,7 +125,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bootstrap-admin': typeof BootstrapAdminRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
@@ -120,7 +144,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/bootstrap-admin': typeof BootstrapAdminRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_app/activity': typeof AppActivityRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/leads': typeof AppLeadsRouteWithChildren
@@ -136,7 +163,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bootstrap-admin'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/activity'
     | '/dashboard'
     | '/leads'
@@ -150,7 +180,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bootstrap-admin'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/activity'
     | '/dashboard'
     | '/leads'
@@ -165,7 +198,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/bootstrap-admin'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/_app/activity'
     | '/_app/dashboard'
     | '/_app/leads'
@@ -181,16 +217,40 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  BootstrapAdminRoute: typeof BootstrapAdminRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bootstrap-admin': {
+      id: '/bootstrap-admin'
+      path: '/bootstrap-admin'
+      fullPath: '/bootstrap-admin'
+      preLoaderRoute: typeof BootstrapAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -321,7 +381,10 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  BootstrapAdminRoute: BootstrapAdminRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

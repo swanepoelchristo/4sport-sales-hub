@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Logo } from "@/components/Logo";
@@ -71,7 +71,11 @@ function LoginPage() {
             >
               {busy ? "Signing in…" : "Sign in"}
             </button>
-            <p className="mt-4 text-center text-xs text-muted-foreground">
+            <div className="mt-4 flex items-center justify-between text-xs">
+              <Link to="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
+              <Link to="/bootstrap-admin" className="text-muted-foreground hover:text-primary hover:underline">First-time setup</Link>
+            </div>
+            <p className="mt-3 text-center text-xs text-muted-foreground">
               Accounts are created by an administrator.
             </p>
           </form>

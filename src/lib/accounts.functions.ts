@@ -135,3 +135,64 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
     await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.password_reset", detail: `Password reset sent to ${email}`, entity_type: "account" });
     return { ok: true };
   });
+
+export const resendInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ email: z.string().email().max(255) }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.userId);
+    const email = data.email.toLowerCase();
+    const existing = await findAuthUser(email);
+    if (existing && existing.last_sign_in_at) {
+      const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+    } else {
+      const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
+      if (error && !/already.*registered|exists/i.test(error.message)) throw error;
+    }
+    await supabaseAdmin.from("reps").update({ last_invite_sent_at: new Date().toISOString() }).eq("email", email);
+    await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.invite_resent", detail: `Re-sent invite to ${email}`, entity_type: "account" });
+    return { ok: true };
+  });
+
+export const updateAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({
+    repId: z.string().uuid(),
+    fullName: z.string().min(1).max(120).optional(),
+    phone: z.string().max(60).optional(),
+    role: roleSchema.optional(),
+    province: z.string().max(80).optional(),
+    region: z.string().max(80).optional(),
+    sportFocus: z.string().max(80).optional(),
+    active: z.boolean().optional(),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.userId);
+    const { data: rep, error: repErr } = await supabaseAdmin.from("reps").select("*").eq("id", data.repId).single();
+    if (repErr || !rep) throw repErr ?? new Error("Rep not found");
+
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (data.fullName !== undefined) update.full_name = data.fullName;
+    if (data.phone !== undefined) update.phone = data.phone;
+    if (data.role !== undefined) update.role = data.role;
+    if (data.province !== undefined) update.province = data.province;
+    if (data.region !== undefined) update.region = data.region;
+    if (data.sportFocus !== undefined) update.sport_focus = data.sportFocus;
+    if (data.active !== undefined) update.active = data.active;
+
+    const { error: upErr } = await supabaseAdmin.from("reps").update(update as never).eq("id", data.repId);
+    if (upErr) throw upErr;
+
+    if (data.role && rep.user_id && data.role !== rep.role) {
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", rep.user_id);
+      await supabaseAdmin.from("user_roles").insert({ user_id: rep.user_id, role: data.role });
+      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.role_assigned", detail: `${rep.email} -> ${data.role}`, entity_type: "account" });
+    }
+    if (data.active === false && rep.active) {
+      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.deactivated", detail: `Deactivated ${rep.email}`, entity_type: "account" });
+    } else if (data.active === true && !rep.active) {
+      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.activated", detail: `Activated ${rep.email}`, entity_type: "account" });
+    }
+    return { ok: true };
+  });
