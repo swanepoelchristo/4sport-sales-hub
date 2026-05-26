@@ -22,6 +22,7 @@ interface Ctx {
   user: Profile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<Profile | { error: string }>;
+  retryProfileLoad: () => Promise<Profile | { error: string }>;
   logout: () => Promise<void>;
   setState: (updater: (s: State) => State) => void;
   addActivity: (action: string, detail: string, entity?: { type?: string; id?: string }) => Promise<void>;
@@ -29,6 +30,7 @@ interface Ctx {
 }
 
 const StoreContext = createContext<Ctx | null>(null);
+const PROFILE_LOAD_ERROR = "Profile could not be loaded. Please refresh or contact admin.";
 
 // ---------- Row mappers (DB <-> domain) ----------
 const repFromRow = (r: any): Rep => ({
@@ -196,58 +198,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const buildProfileFromAuth = useCallback(async (authUser: { id: string; email?: string | null }): Promise<Profile | null> => {
-    // Hydration guard: ensure access_token is attached before any RLS query.
-    let hydrated = false;
-    for (let i = 0; i < 3; i++) {
+  const buildProfileFromSession = useCallback(async (): Promise<Profile | null> => {
+    let session = null;
+    for (let i = 0; i < 5; i++) {
       const { data: sd } = await supabase.auth.getSession();
-      if (sd.session?.access_token) { hydrated = true; break; }
-      console.warn(`[session.hydrate] no access_token, attempt ${i + 1}/3`);
-      await new Promise((r) => setTimeout(r, 300 + i * 150));
+      if (sd.session?.access_token && sd.session.user) {
+        session = sd.session;
+        break;
+      }
+      console.warn(`[session.hydrate] no access_token, attempt ${i + 1}/5`);
+      await new Promise((r) => setTimeout(r, 300));
     }
-    if (!hydrated) {
-      console.warn("[session.hydrate] failed after 3 attempts — proceeding anyway");
-    }
+    if (!session?.access_token || !session.user) return null;
 
-    // Profile lookup with retry — mobile RLS race can return null transiently.
+    await new Promise((r) => setTimeout(r, 500));
+    const authUser = session.user;
     let prof: any = null;
     let profErr: any = null;
     for (let i = 0; i < 3; i++) {
       const res = await supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
       profErr = res.error;
       prof = res.data;
+      console.warn(`[profile.retry.${i + 1}]`, { found: !!prof, error: profErr?.message ?? null });
       if (prof || profErr) break;
-      console.warn(`[profile.lookup] null on attempt ${i + 1}/3, retrying in 400ms`);
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 500));
     }
     const { data: roles, error: rolesErr } = await supabase
       .from("user_roles").select("role").eq("user_id", authUser.id);
     if (profErr) console.warn("[profile.lookup.error]", profErr.message);
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
-
-    // Bootstrap-admin self-repair: only for the designated bootstrap email.
-    const BOOTSTRAP_EMAIL = "swanepoelchristo00@gmail.com";
-    if (!prof && authUser.email?.toLowerCase() === BOOTSTRAP_EMAIL) {
-      console.warn("[profile.repair] bootstrap admin profile missing — repairing");
-      await supabase.from("profiles").upsert(
-        { id: authUser.id, email: authUser.email, full_name: "Christo" },
-        { onConflict: "id" },
-      );
-      await supabase.from("user_roles").upsert(
-        { user_id: authUser.id, role: "admin" },
-        { onConflict: "user_id,role" },
-      );
-      const res = await supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
-      prof = res.data;
-    }
-
     if (!prof) return null;
     // reps links via reps.user_id = auth.users.id (profiles.id = auth.users.id).
     const { data: rep } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
     const roleList = roles ?? [];
-    const isBootstrap = authUser.email?.toLowerCase() === BOOTSTRAP_EMAIL;
-    const role = roleList.some((r: any) => r.role === "admin") || isBootstrap ? "admin" : "sales_rep";
+    const role = roleList.some((r: any) => r.role === "admin") ? "admin" : "sales_rep";
     return {
       id: rep?.id ?? "",
       auth_id: authUser.id,
