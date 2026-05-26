@@ -219,7 +219,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      pushAuthEvent(event, session);
+      // Skip profile reload for PASSWORD_RECOVERY — user is mid-flow, not logged in.
+      if (event === "PASSWORD_RECOVERY") return;
       // Defer to avoid deadlock with supabase client
       setTimeout(async () => {
         if (!active) return;
