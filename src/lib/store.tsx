@@ -32,14 +32,20 @@ const StoreContext = createContext<Ctx | null>(null);
 // ---------- Row mappers (DB <-> domain) ----------
 const repFromRow = (r: any): Rep => ({
   id: r.id,
+  profile_id: r.profile_id ?? null,
   user_id: r.user_id ?? null,
   full_name: r.full_name,
   email: r.email,
   phone: r.phone ?? "",
   province: r.province ?? "",
+  region: r.region ?? "",
   sport_focus: r.sport_focus ?? "",
   role: r.role as Role,
   active: !!r.active,
+  invitation_status: r.invitation_status ?? "pending",
+  invited_at: r.invited_at ?? null,
+  last_invite_sent_at: r.last_invite_sent_at ?? null,
+  password_reset_sent_at: r.password_reset_sent_at ?? null,
 });
 
 const leadFromRow = (r: any): Lead => ({
@@ -133,8 +139,9 @@ async function syncTable<T extends { id: string }>(
 }
 
 const repToRow = (r: Rep) => ({
-  id: r.id, user_id: r.user_id ?? null, full_name: r.full_name, email: r.email,
-  phone: r.phone, province: r.province, sport_focus: r.sport_focus,
+  id: r.id, profile_id: r.profile_id ?? null, user_id: r.user_id ?? null,
+  full_name: r.full_name, email: r.email,
+  phone: r.phone, province: r.province, region: r.region ?? "", sport_focus: r.sport_focus,
   role: r.role, active: r.active,
 });
 const leadToRow = (l: Lead) => ({
@@ -189,17 +196,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const buildProfileFromAuth = useCallback(async (authUser: { id: string; email?: string | null }): Promise<Profile | null> => {
-    const { data: prof } = await supabase
+    const [{ data: prof }, { data: roles }] = await Promise.all([
+      supabase
       .from("profiles").select("*").eq("id", authUser.id).maybeSingle();
+      supabase
+        .from("user_roles").select("role").eq("user_id", authUser.id),
+    ]);
     if (!prof) return null;
     const { data: rep } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
+    const role = (roles ?? []).some((r: any) => r.role === "admin") ? "admin" : "sales_rep";
     return {
       id: rep?.id ?? "",
       auth_id: authUser.id,
       full_name: prof.full_name || prof.email,
       email: prof.email,
-      role: prof.role,
+      role,
     };
   }, []);
 
@@ -254,7 +266,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error || !data.user) return { error: error?.message ?? "Invalid email or password." };
     const profile = await buildProfileFromAuth(data.user);
-    if (!profile) return { error: "No profile found for this account." };
+    if (!profile) {
+      await supabase.auth.signOut();
+      return { error: "User exists but profile is missing. Contact admin." };
+    }
     setUser(profile);
     await loadAll(profile);
     return profile;
