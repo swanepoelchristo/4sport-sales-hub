@@ -197,44 +197,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const buildProfileFromAuth = useCallback(async (authUser: { id: string; email?: string | null }): Promise<Profile | null> => {
-    const [{ data: prof, error: profErr }, { data: roles, error: rolesErr }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", authUser.id),
-    ]);
+    // Hydration guard: ensure access_token is attached before any RLS query.
+    let hydrated = false;
+    for (let i = 0; i < 3; i++) {
+      const { data: sd } = await supabase.auth.getSession();
+      if (sd.session?.access_token) { hydrated = true; break; }
+      console.warn(`[session.hydrate] no access_token, attempt ${i + 1}/3`);
+      await new Promise((r) => setTimeout(r, 300 + i * 150));
+    }
+    if (!hydrated) {
+      console.warn("[session.hydrate] failed after 3 attempts — proceeding anyway");
+    }
+
+    // Profile lookup with retry — mobile RLS race can return null transiently.
+    let prof: any = null;
+    let profErr: any = null;
+    for (let i = 0; i < 3; i++) {
+      const res = await supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
+      profErr = res.error;
+      prof = res.data;
+      if (prof || profErr) break;
+      console.warn(`[profile.lookup] null on attempt ${i + 1}/3, retrying in 400ms`);
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    const { data: roles, error: rolesErr } = await supabase
+      .from("user_roles").select("role").eq("user_id", authUser.id);
     if (profErr) console.warn("[profile.lookup.error]", profErr.message);
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
 
-    let profile: any = prof;
-
-    // Safe self-repair: bootstrap admin only.
-    if (!profile && authUser.email === "swanepoelchristo00@gmail.com") {
-      console.warn("[profile.repair] creating missing profile for bootstrap admin");
-      const { data: upserted, error: upErr } = await supabase
-        .from("profiles")
-        .upsert({ id: authUser.id, email: authUser.email, full_name: "Christo" }, { onConflict: "id" })
-        .select("*")
-        .maybeSingle();
-      if (upErr) {
-        console.warn("[profile.repair.error]", upErr.message);
-      } else {
-        profile = upserted;
-        await supabase.from("user_roles").upsert(
-          { user_id: authUser.id, role: "admin" },
-          { onConflict: "user_id,role" }
-        );
-      }
-    }
-
-    if (!profile) return null;
+    if (!prof) return null;
     const { data: rep } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
-    const isBootstrapAdmin = authUser.email === "swanepoelchristo00@gmail.com";
-    const role = ((roles ?? []).some((r: any) => r.role === "admin") || isBootstrapAdmin) ? "admin" : "sales_rep";
+    const role = (roles ?? []).some((r: any) => r.role === "admin") ? "admin" : "sales_rep";
     return {
       id: rep?.id ?? "",
       auth_id: authUser.id,
-      full_name: profile.full_name || profile.email,
-      email: profile.email,
+      full_name: prof.full_name || prof.email,
+      email: prof.email,
       role,
     };
   }, []);
