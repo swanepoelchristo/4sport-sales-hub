@@ -169,10 +169,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const loadAll = useCallback(async (profile: Profile) => {
     const [reps, leads, meetings, signups, activity] = await Promise.all([
-      supabase.from("reps").select("*").order("full_name"),
-      supabase.from("leads").select("*").order("created_at", { ascending: false }),
-      supabase.from("meetings").select("*").order("meeting_at", { ascending: false }),
-      supabase.from("signups").select("*").order("created_at", { ascending: false }),
+      supabase.from("reps").select("*").eq("archived", false).order("full_name"),
+      supabase.from("leads").select("*").eq("archived", false).order("created_at", { ascending: false }),
+      supabase.from("meetings").select("*").eq("archived", false).order("meeting_at", { ascending: false }),
+      supabase.from("signups").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(500),
     ]);
     setStateInner({
@@ -182,7 +182,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signups: (signups.data ?? []).map(signupFromRow),
       activity: (activity.data ?? []).map(activityFromRow),
     });
-    // Profile.id needs to be the linked rep id (for filter parity with assigned_rep_id / rep_id)
     if (!profile.id) {
       const mine = (reps.data ?? []).find((r: any) => r.user_id === profile.auth_id);
       if (mine) setUser({ ...profile, id: mine.id });
