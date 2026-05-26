@@ -243,17 +243,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       pushAuthEvent(event, session);
-      // Skip profile reload for PASSWORD_RECOVERY — user is mid-flow, not logged in.
-      if (event === "PASSWORD_RECOVERY") return;
+      // Gate: only run profile lookup on real sign-in transitions.
+      // INITIAL_SESSION is handled by the bootstrap block below.
+      // PASSWORD_RECOVERY / SIGNED_OUT must never trigger a profile query.
+      if (event === "PASSWORD_RECOVERY" || event === "INITIAL_SESSION") return;
+      if (event === "SIGNED_OUT" || !session?.user) {
+        setUser(null);
+        setStateInner(emptyState);
+        setLoading(false);
+        return;
+      }
+      if (event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED" && event !== "USER_UPDATED") return;
       // Defer to avoid deadlock with supabase client
       setTimeout(async () => {
         if (!active) return;
-        if (!session?.user) {
-          setUser(null);
-          setStateInner(emptyState);
-          setLoading(false);
-          return;
-        }
         const profile = await buildProfileFromAuth(session.user);
         if (!active) return;
         setUser(profile);
