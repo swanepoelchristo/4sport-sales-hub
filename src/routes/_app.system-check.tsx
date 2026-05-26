@@ -80,7 +80,7 @@ function SystemCheckPage() {
         if (!profileResult.data) throw new Error("Profile row not found");
         profileRow = profileResult.data;
         roleRows = rolesResult.data ?? [];
-        update("profile", { status: "pass", message: `Loaded profile for ${data.email}` });
+        update("profile", { status: "pass", message: `Loaded profile for ${profileResult.data.email}` });
       } catch (e: any) {
         update("profile", { status: "fail", message: e?.message ?? String(e) });
       }
