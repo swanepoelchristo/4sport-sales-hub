@@ -293,6 +293,7 @@ function SystemCheckPage() {
       } catch (e: any) {
         update("reset-route", { status: "fail", message: e?.message ?? String(e) });
       }
+    } finally {
       // Cleanup TEST records
       if (cleanup.meetingId) {
         await supabase.from("meetings").delete().eq("id", cleanup.meetingId);
