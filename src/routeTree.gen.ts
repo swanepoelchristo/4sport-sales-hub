@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSystemCheckRouteImport } from './routes/_app.system-check'
 import { Route as AppSignupsRouteImport } from './routes/_app.signups'
 import { Route as AppRepsRouteImport } from './routes/_app.reps'
+import { Route as AppPerformanceRouteImport } from './routes/_app.performance'
 import { Route as AppMeetingsRouteImport } from './routes/_app.meetings'
 import { Route as AppLeadsRouteImport } from './routes/_app.leads'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -49,6 +50,11 @@ const AppSignupsRoute = AppSignupsRouteImport.update({
 const AppRepsRoute = AppRepsRouteImport.update({
   id: '/reps',
   path: '/reps',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPerformanceRoute = AppPerformanceRouteImport.update({
+  id: '/performance',
+  path: '/performance',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMeetingsRoute = AppMeetingsRouteImport.update({
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
   '/meetings': typeof AppMeetingsRoute
+  '/performance': typeof AppPerformanceRoute
   '/reps': typeof AppRepsRoute
   '/signups': typeof AppSignupsRoute
   '/system-check': typeof AppSystemCheckRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
   '/meetings': typeof AppMeetingsRoute
+  '/performance': typeof AppPerformanceRoute
   '/reps': typeof AppRepsRoute
   '/signups': typeof AppSignupsRoute
   '/system-check': typeof AppSystemCheckRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/leads': typeof AppLeadsRouteWithChildren
   '/_app/meetings': typeof AppMeetingsRoute
+  '/_app/performance': typeof AppPerformanceRoute
   '/_app/reps': typeof AppRepsRoute
   '/_app/signups': typeof AppSignupsRoute
   '/_app/system-check': typeof AppSystemCheckRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/leads'
     | '/meetings'
+    | '/performance'
     | '/reps'
     | '/signups'
     | '/system-check'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/leads'
     | '/meetings'
+    | '/performance'
     | '/reps'
     | '/signups'
     | '/system-check'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/leads'
     | '/_app/meetings'
+    | '/_app/performance'
     | '/_app/reps'
     | '/_app/signups'
     | '/_app/system-check'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/reps'
       fullPath: '/reps'
       preLoaderRoute: typeof AppRepsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/performance': {
+      id: '/_app/performance'
+      path: '/performance'
+      fullPath: '/performance'
+      preLoaderRoute: typeof AppPerformanceRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/meetings': {
@@ -280,6 +299,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppLeadsRoute: typeof AppLeadsRouteWithChildren
   AppMeetingsRoute: typeof AppMeetingsRoute
+  AppPerformanceRoute: typeof AppPerformanceRoute
   AppRepsRoute: typeof AppRepsRoute
   AppSignupsRoute: typeof AppSignupsRoute
   AppSystemCheckRoute: typeof AppSystemCheckRoute
@@ -290,6 +310,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppLeadsRoute: AppLeadsRouteWithChildren,
   AppMeetingsRoute: AppMeetingsRoute,
+  AppPerformanceRoute: AppPerformanceRoute,
   AppRepsRoute: AppRepsRoute,
   AppSignupsRoute: AppSignupsRoute,
   AppSystemCheckRoute: AppSystemCheckRoute,
