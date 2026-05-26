@@ -149,3 +149,67 @@ sudo certbot --nginx -d dashboard.4sport.co.za
 Point Coolify at the GitHub repo, choose **Dockerfile** as the build pack, and
 set the env vars from `.env.example` in the Coolify UI. Coolify handles TLS
 and reverse proxy automatically — the nginx example is only for bare VPS.
+
+---
+
+## Manual Test Before Going Live
+
+Run this checklist on the live URL before handing the dashboard to the team.
+Admins also have an automated **System Check** page at `/system-check` that
+verifies the backend (connection, profile load, role, RLS, CRUD, commission
+calc, activity log). Run it first, then walk through the manual steps below.
+
+All records created during testing must be clearly prefixed with `[TEST]`
+in the `org_name` or `notes` field, and removed afterwards. Do **not** seed
+fake data into the live UI.
+
+### 1. Christo admin login
+- Sign in as `christo@4sport.co.za`.
+- Confirm header shows role `admin` and the **Reps**, **Activity**, and
+  **System** nav items are visible.
+- Open `/system-check` → click **Run all checks** → all 11 checks must pass.
+
+### 2. Mariaan admin login
+- Sign out, sign in as `mariaan@4sport.co.za`.
+- Repeat the System Check run; all 11 must pass.
+
+### 3. Sales rep login
+- Sign in as a seeded sales rep account.
+- Confirm header shows role `sales_rep`; **Reps / Activity / System** are
+  hidden.
+- Dashboard KPIs and lead list must only show records assigned to this rep.
+
+### 4. Create lead (as sales rep)
+- Go to **Leads → New Lead**, create `[TEST] Greenwood High`, assign to self.
+- Lead appears in the rep's list immediately.
+
+### 5. Assign lead (as admin)
+- Sign back in as Christo, open `[TEST] Greenwood High`, reassign to a
+  different rep, save.
+- Original rep can no longer see it; new rep can.
+
+### 6. Log meeting
+- As the assigned rep, open the lead → **Log meeting** → save with type,
+  outcome notes and next action.
+- Meeting appears under **Meetings** for that rep and under the lead.
+
+### 7. Mark school paid
+- Admin opens **Signups**, creates a signup row for the test lead, sets
+  `paid = true`, `payment_date`, `active_teams = 3`, `paying_users_active`.
+
+### 8. Confirm commission qualification
+- On the same signup, confirm the **Qualified** badge is green and the
+  payout shows **R500** for `1st year`.
+- Lower `active_teams` to 2 → qualification flips to false and payout R0.
+- Restore values.
+
+### 9. Confirm rep cannot see another rep's lead
+- Sign in as a second sales rep with no leads assigned.
+- `/leads` is empty; opening the previous lead's URL directly returns a
+  not-found / empty state (RLS blocks the read at the database level).
+
+### 10. Clean up
+- As admin, delete every `[TEST]` lead, meeting and signup.
+- Re-run `/system-check` — Activity log should record the cleanup actions.
+
+
