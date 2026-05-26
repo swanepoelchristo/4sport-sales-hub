@@ -2,6 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { pushAuthEvent } from "./auth-debug";
 import type {
   Rep, Lead, Meeting, Signup, ActivityLog, Profile, Role,
 } from "./types";
