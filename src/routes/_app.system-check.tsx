@@ -71,7 +71,7 @@ function SystemCheckPage() {
       let profileRow: any = null;
       try {
         const { data, error } = await supabase
-          .from("profiles").select("*").eq("id", user.auth_id).maybeSingle();
+          .from("profiles").select("*").eq("id", u.auth_id).maybeSingle();
         if (error) throw error;
         if (!data) throw new Error("Profile row not found");
         profileRow = data;
@@ -82,10 +82,10 @@ function SystemCheckPage() {
 
       // 3. Role
       update("role", { status: "running", message: "" });
-      if (profileRow && profileRow.role === user.role) {
+      if (profileRow && profileRow.role === u.role) {
         update("role", { status: "pass", message: `Role = ${profileRow.role}` });
       } else {
-        update("role", { status: "fail", message: `Expected ${user.role}, got ${profileRow?.role ?? "none"}` });
+        update("role", { status: "fail", message: `Expected ${u.role}, got ${profileRow?.role ?? "none"}` });
       }
 
       // 4. Admin can read all leads
@@ -193,8 +193,8 @@ function SystemCheckPage() {
       update("activity", { status: "running", message: "" });
       try {
         const { data, error } = await supabase.from("activity_logs").insert({
-          actor_id: user.auth_id,
-          actor_name: user.full_name,
+          actor_id: u.auth_id,
+          actor_name: u.full_name,
           action: "system_check",
           detail: TAG,
           entity_type: "system",
