@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string
+          invited_by: string | null
+          last_sent_at: string
+          rep_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          full_name?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          last_sent_at?: string
+          rep_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          last_sent_at?: string
+          rep_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_invitations_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "reps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_logs: {
         Row: {
           action: string
@@ -298,7 +351,6 @@ export type Database = {
           email: string
           full_name: string
           id: string
-          role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
         Insert: {
@@ -306,7 +358,6 @@ export type Database = {
           email: string
           full_name?: string
           id: string
-          role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
         Update: {
@@ -314,7 +365,6 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
         Relationships: []
@@ -329,8 +379,14 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          invitation_status: Database["public"]["Enums"]["invitation_status"]
+          invited_at: string | null
+          last_invite_sent_at: string | null
+          password_reset_sent_at: string | null
           phone: string
+          profile_id: string | null
           province: string
+          region: string
           region_manager_id: string | null
           role: Database["public"]["Enums"]["app_role"]
           sport_focus: string
@@ -346,8 +402,14 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          invitation_status?: Database["public"]["Enums"]["invitation_status"]
+          invited_at?: string | null
+          last_invite_sent_at?: string | null
+          password_reset_sent_at?: string | null
           phone?: string
+          profile_id?: string | null
           province?: string
+          region?: string
           region_manager_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           sport_focus?: string
@@ -363,15 +425,29 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          invitation_status?: Database["public"]["Enums"]["invitation_status"]
+          invited_at?: string | null
+          last_invite_sent_at?: string | null
+          password_reset_sent_at?: string | null
           phone?: string
+          profile_id?: string | null
           province?: string
+          region?: string
           region_manager_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           sport_focus?: string
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reps_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       signups: {
         Row: {
@@ -445,6 +521,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -468,6 +565,7 @@ export type Database = {
         | "3rd consecutive year"
         | "4th consecutive year"
         | "5th year+"
+      invitation_status: "pending" | "accepted" | "expired" | "revoked"
       lead_status:
         | "New Lead"
         | "Contacted"
@@ -618,6 +716,7 @@ export const Constants = {
         "4th consecutive year",
         "5th year+",
       ],
+      invitation_status: ["pending", "accepted", "expired", "revoked"],
       lead_status: [
         "New Lead",
         "Contacted",
