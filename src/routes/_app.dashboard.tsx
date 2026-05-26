@@ -234,3 +234,23 @@ function Dashboard() {
     </>
   );
 }
+
+function NotifTile({
+  to, label, value, tone,
+}: { to: string; label: string; value: number; tone: "warning" | "danger" | "info" | "success" }) {
+  const toneClass = {
+    warning: "text-warning",
+    danger: "text-destructive",
+    info: "text-primary",
+    success: "text-success",
+  }[tone];
+  return (
+    <Link
+      to={to}
+      className="block rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40"
+    >
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={`mt-2 font-display text-2xl ${toneClass}`}>{value}</p>
+    </Link>
+  );
+}
