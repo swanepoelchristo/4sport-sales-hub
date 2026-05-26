@@ -30,7 +30,7 @@ interface Ctx {
 }
 
 const StoreContext = createContext<Ctx | null>(null);
-const PROFILE_LOAD_ERROR = "Profile could not be loaded. Please refresh or contact admin.";
+export const PROFILE_LOAD_ERROR = "Profile could not be loaded. Please refresh or contact admin.";
 
 // ---------- Row mappers (DB <-> domain) ----------
 const repFromRow = (r: any): Rep => ({
