@@ -175,6 +175,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setStateInner] = useState<State>(emptyState);
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [finalizing, setFinalizing] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -199,37 +200,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const buildProfileFromSession = useCallback(async (): Promise<Profile | null> => {
-    let session = null;
-    for (let i = 0; i < 5; i++) {
-      const { data: sd } = await supabase.auth.getSession();
-      if (sd.session?.access_token && sd.session.user) {
-        session = sd.session;
-        break;
-      }
-      console.warn(`[session.hydrate] no access_token, attempt ${i + 1}/5`);
-      await new Promise((r) => setTimeout(r, 300));
+  // Returns: Profile (success) | "empty" (auth ok but profile row not returned) | null (no session)
+  const buildProfileFromSession = useCallback(async (): Promise<Profile | "empty" | null> => {
+    // 1. Auth-ready gate
+    const { data: sd } = await supabase.auth.getSession();
+    const session = sd.session;
+    if (!session?.access_token || !session.user) {
+      console.warn("[profile.query.start]", { hasSession: false, hasToken: false });
+      return null;
     }
-    if (!session?.access_token || !session.user) return null;
+    // THEN wait 1000ms before querying profile
+    await new Promise((r) => setTimeout(r, 1000));
 
-    await new Promise((r) => setTimeout(r, 500));
     const authUser = session.user;
-    let prof: any = null;
-    let profErr: any = null;
-    for (let i = 0; i < 3; i++) {
-      const res = await supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
-      profErr = res.error;
-      prof = res.data;
-      console.warn(`[profile.retry.${i + 1}]`, { found: !!prof, error: profErr?.message ?? null });
-      if (prof || profErr) break;
-      await new Promise((r) => setTimeout(r, 500));
+    console.log("[profile.query.start]", {
+      userId: authUser.id,
+      hasJwt: !!session.access_token,
+      tokenLen: session.access_token.length,
+    });
+
+    // 2. Query with .limit(1) (no maybeSingle)
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", authUser.id)
+      .limit(1);
+
+    if (error) {
+      console.error("[profile.query.error]", {
+        message: error.message,
+        code: (error as any).code,
+        details: (error as any).details,
+        hasJwt: !!session.access_token,
+      });
+      return "empty";
     }
+    if (!data || data.length === 0) {
+      console.warn("[profile.query.empty]", { userId: authUser.id, hasJwt: !!session.access_token });
+      return "empty";
+    }
+    const prof = data[0];
+    console.log("[profile.query.success]", { id: prof.id, email: prof.email });
+
     const { data: roles, error: rolesErr } = await supabase
       .from("user_roles").select("role").eq("user_id", authUser.id);
-    if (profErr) console.warn("[profile.lookup.error]", profErr.message);
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
-    if (!prof) return null;
-    // reps links via reps.user_id = auth.users.id (profiles.id = auth.users.id).
     const { data: rep } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).maybeSingle();
     const roleList = roles ?? [];
@@ -242,6 +257,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       role,
     };
   }, []);
+
+  // Resolve profile with one silent retry after 1500ms if first attempt is empty.
+  const resolveProfile = useCallback(async (): Promise<Profile | "empty" | null> => {
+    const first = await buildProfileFromSession();
+    if (first === "empty") {
+      setFinalizing(true);
+      await new Promise((r) => setTimeout(r, 1500));
+      const second = await buildProfileFromSession();
+      setFinalizing(false);
+      return second;
+    }
+    return first;
+  }, [buildProfileFromSession]);
+
+
 
 
   useEffect(() => {
