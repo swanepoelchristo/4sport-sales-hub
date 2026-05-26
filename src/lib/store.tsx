@@ -302,7 +302,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const profile = await buildProfileFromAuth(data.user);
     if (!profile) {
       await supabase.auth.signOut();
-      return { error: "User exists but profile is missing. Contact admin." };
+      return { error: "Establishing secure session… profile lookup failed after retries. Please try again." };
     }
     setUser(profile);
     await loadAll(profile);
