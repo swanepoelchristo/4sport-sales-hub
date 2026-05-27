@@ -114,8 +114,20 @@ function AdminReps({ reps: initialReps }: { reps: Rep[] }) {
         }
       />
 
+      <HowToUse adminOnly>
+        <p><strong>What this page is for:</strong> invite and manage admins and sales reps. <em>Admin use only.</em></p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Click <em>Invite user</em> to send a sign-in invite.</li>
+          <li>Assign region and sport so leads route correctly.</li>
+          <li>Deactivate reps who leave the team; send password resets when needed.</li>
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> every active rep should have role, region and sport set.</p>
+      </HowToUse>
+
       {toast && <div className="mb-3 rounded-lg border border-border bg-card px-3 py-2 text-sm">{toast}</div>}
       {err && <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</div>}
+
 
       {showForm && (
         <form onSubmit={submit} className="mb-6 grid gap-3 rounded-xl border border-border bg-card p-5 md:grid-cols-2">
