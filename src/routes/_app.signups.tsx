@@ -77,8 +77,20 @@ function SignupsPage() {
         }
       />
 
+      <HowToUse>
+        <p><strong>What this page is for:</strong> record schools that have signed and track when commission becomes payable.</p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Click <em>New signup</em> when a school signs.</li>
+          <li>Mark when the school has paid.</li>
+          <li>Check qualified commission and payout status.</li>
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> all paid schools should show the correct commission status.</p>
+      </HowToUse>
+
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Mini label="Signups" value={signups.length} />
+
         <Mini label="Qualified" value={totalQualified} />
         <Mini label="Commission" value={`R ${totalAmount.toLocaleString("en-ZA")}`} />
         <Mini label="Paid out" value={`R ${totalPaid.toLocaleString("en-ZA")}`} />
