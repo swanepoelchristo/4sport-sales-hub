@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, EmptyState } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 import { commissionQualified, commissionAmount } from "@/lib/types";
 import { Download } from "lucide-react";
 import { exportRowsAsCsv } from "@/lib/csv";
