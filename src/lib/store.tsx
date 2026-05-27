@@ -17,19 +17,6 @@ interface State {
 
 const emptyState: State = { reps: [], leads: [], meetings: [], signups: [], activity: [] };
 
-export interface DebugReport {
-  sessionExists: boolean;
-  accessTokenExists: boolean;
-  authUserId: string | null;
-  authEmail: string | null;
-  profileData: unknown;
-  profileError: unknown;
-  userRolesData: unknown;
-  userRolesError: unknown;
-  hostname: string;
-  timestamp: string;
-}
-
 interface Ctx {
   state: State;
   user: Profile | null;
@@ -37,7 +24,6 @@ interface Ctx {
   finalizing: boolean;
   login: (email: string, password: string) => Promise<Profile | { error: string }>;
   retryProfileLoad: () => Promise<Profile | { error: string }>;
-  collectDebugReport: () => Promise<DebugReport>;
   logout: () => Promise<void>;
   setState: (updater: (s: State) => State) => void;
   addActivity: (action: string, detail: string, entity?: { type?: string; id?: string }) => Promise<void>;
@@ -367,34 +353,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await loadAll(profile);
     return profile;
   }, [resolveProfile, loadAll]);
-  const collectDebugReport = useCallback(async (): Promise<DebugReport> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const authUser = session?.user ?? null;
-    let profileData: unknown = null;
-    let profileError: unknown = null;
-    let userRolesData: unknown = null;
-    let userRolesError: unknown = null;
-    if (authUser) {
-      const pr = await supabase.from("profiles").select("*").eq("id", authUser.id).limit(1);
-      profileData = pr.data;
-      profileError = pr.error;
-      const rr = await supabase.from("user_roles").select("*").eq("user_id", authUser.id);
-      userRolesData = rr.data;
-      userRolesError = rr.error;
-    }
-    return {
-      sessionExists: !!session,
-      accessTokenExists: !!session?.access_token,
-      authUserId: authUser?.id ?? null,
-      authEmail: authUser?.email ?? null,
-      profileData,
-      profileError,
-      userRolesData,
-      userRolesError,
-      hostname: typeof window !== "undefined" ? window.location.hostname : "",
-      timestamp: new Date().toISOString(),
-    };
-  }, []);
 
 
 
@@ -431,7 +389,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <StoreContext.Provider value={{ state, user, loading, finalizing, login, retryProfileLoad, collectDebugReport, logout, setState, addActivity, uid }}>
+    <StoreContext.Provider value={{ state, user, loading, finalizing, login, retryProfileLoad, logout, setState, addActivity, uid }}>
       {children}
     </StoreContext.Provider>
   );
