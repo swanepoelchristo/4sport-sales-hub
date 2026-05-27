@@ -48,9 +48,6 @@ function LoginPage() {
     if ("error" in result) {
       setError(result.error);
       console.warn("[login.failed]", trimmed, result.error);
-      if (result.error === PROFILE_LOAD_ERROR) {
-        try { setDebug(await collectDebugReport()); } catch (e) { console.warn("[debug.collect.error]", e); }
-      }
       return;
     }
     void audit("login.success", trimmed);
@@ -70,23 +67,12 @@ function LoginPage() {
     setBusy(false);
     if ("error" in result) {
       setError(result.error);
-      try { setDebug(await collectDebugReport()); } catch (e) { console.warn("[debug.collect.error]", e); }
       return;
     }
-    setDebug(null);
     navigate({ to: "/dashboard", replace: true });
   };
 
-  const copyDebug = async () => {
-    if (!debug) return;
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(debug, null, 2));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (e) {
-      console.warn("[debug.copy.error]", e);
-    }
-  };
+
 
 
   return (
