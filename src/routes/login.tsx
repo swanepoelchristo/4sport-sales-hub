@@ -8,12 +8,14 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
 function LoginPage() {
-  const { login, retryProfileLoad, finalizing, user } = useStore();
+  const { login, retryProfileLoad, collectDebugReport, finalizing, user } = useStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [debug, setDebug] = useState<Awaited<ReturnType<typeof collectDebugReport>> | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Clean stale recovery state / broken PKCE verifiers on mount.
   useEffect(() => {
