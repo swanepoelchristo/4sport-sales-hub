@@ -17,6 +17,19 @@ interface State {
 
 const emptyState: State = { reps: [], leads: [], meetings: [], signups: [], activity: [] };
 
+export interface DebugReport {
+  sessionExists: boolean;
+  accessTokenExists: boolean;
+  authUserId: string | null;
+  authEmail: string | null;
+  profileData: unknown;
+  profileError: unknown;
+  userRolesData: unknown;
+  userRolesError: unknown;
+  hostname: string;
+  timestamp: string;
+}
+
 interface Ctx {
   state: State;
   user: Profile | null;
@@ -24,6 +37,7 @@ interface Ctx {
   finalizing: boolean;
   login: (email: string, password: string) => Promise<Profile | { error: string }>;
   retryProfileLoad: () => Promise<Profile | { error: string }>;
+  collectDebugReport: () => Promise<DebugReport>;
   logout: () => Promise<void>;
   setState: (updater: (s: State) => State) => void;
   addActivity: (action: string, detail: string, entity?: { type?: string; id?: string }) => Promise<void>;
