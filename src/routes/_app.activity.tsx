@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@/lib/store";
 import { PageHeader, EmptyState } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 
 export const Route = createFileRoute("/_app/activity")({ component: ActivityPage });
 
