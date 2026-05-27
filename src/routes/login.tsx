@@ -72,10 +72,24 @@ function LoginPage() {
     setBusy(false);
     if ("error" in result) {
       setError(result.error);
+      try { setDebug(await collectDebugReport()); } catch (e) { console.warn("[debug.collect.error]", e); }
       return;
     }
+    setDebug(null);
     navigate({ to: "/dashboard", replace: true });
   };
+
+  const copyDebug = async () => {
+    if (!debug) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(debug, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.warn("[debug.copy.error]", e);
+    }
+  };
+
 
   return (
     <div className="flex min-h-screen flex-col brand-gradient-bg">
