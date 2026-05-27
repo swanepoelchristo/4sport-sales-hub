@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@/lib/store";
 import { PageHeader, EmptyState } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 
 export const Route = createFileRoute("/_app/activity")({ component: ActivityPage });
 
@@ -14,7 +15,17 @@ function ActivityPage() {
   return (
     <>
       <PageHeader title="Activity log" subtitle="Audit trail of changes made by reps and admins." />
+      <HowToUse adminOnly>
+        <p><strong>What this page is for:</strong> review who did what, and when. <em>Admin use only.</em></p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Scan recent entries for unusual changes.</li>
+          <li>Use timestamps and actor names to trace any issue.</li>
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> investigate anything that looks wrong.</p>
+      </HowToUse>
       {state.activity.length === 0 ? (
+
         <EmptyState>No activity recorded yet.</EmptyState>
       ) : (
         <ol className="space-y-2">

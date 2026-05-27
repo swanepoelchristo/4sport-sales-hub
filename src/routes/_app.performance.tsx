@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, EmptyState } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 import { commissionQualified, commissionAmount } from "@/lib/types";
 import { Download } from "lucide-react";
 import { exportRowsAsCsv } from "@/lib/csv";
@@ -79,7 +80,18 @@ function PerformancePage() {
         }
       />
 
+      <HowToUse adminOnly>
+        <p><strong>What this page is for:</strong> compare reps on leads, meetings, signups and commission. <em>Admin use only.</em></p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Scan the per-rep table for low conversion or stalled pipelines.</li>
+          <li>Export to CSV for sharing or reporting.</li>
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> follow up with any rep showing red flags.</p>
+      </HowToUse>
+
       {rows.length === 0 ? (
+
         <EmptyState>No reps yet.</EmptyState>
       ) : (
         <Section title="Per rep">

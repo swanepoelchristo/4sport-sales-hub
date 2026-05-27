@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 import type { Meeting, MeetingStatus, MeetingType } from "@/lib/types";
 import { Plus, X } from "lucide-react";
 
@@ -71,7 +72,19 @@ function MeetingsPage() {
         }
       />
 
+      <HowToUse>
+        <p><strong>What this page is for:</strong> schedule new visits and log completed ones.</p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Click <em>Log meeting</em> to schedule a visit or record one you've done.</li>
+          <li>Mark meetings as Completed, Rescheduled or No-show as soon as they happen.</li>
+          <li>Add quick notes so the next step is clear.</li>
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> no scheduled meetings should be left in the past.</p>
+      </HowToUse>
+
       {showForm && (
+
         <form onSubmit={submit} className="mb-6 grid gap-3 rounded-xl border border-border bg-card p-5 md:grid-cols-2">
           <Lbl label="Lead">
             <select required className={inp} value={form.lead_id} onChange={(e) => setForm({ ...form, lead_id: e.target.value })}>
