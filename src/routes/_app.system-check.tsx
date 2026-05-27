@@ -326,8 +326,19 @@ function SystemCheckPage() {
         }
       />
 
+      <HowToUse adminOnly>
+        <p><strong>What this page is for:</strong> verify auth, database and workflows are healthy. <em>Admin use only.</em></p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Click <em>Run all checks</em> after deploys or schema changes.</li>
+          <li>Investigate any failed check before reporting the system OK.</li>
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> all checks should be green; TEST records are cleaned up automatically.</p>
+      </HowToUse>
+
       <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
         <StatusBadge tone="success">Pass: {pass}</StatusBadge>
+
         <StatusBadge tone="danger">Fail: {fail}</StatusBadge>
         <span>Total: {checks.length}</span>
       </div>
