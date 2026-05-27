@@ -80,6 +80,29 @@ function Dashboard() {
         subtitle={isAdmin ? "Full visibility across reps, leads and commissions." : "Your pipeline at a glance."}
       />
 
+      <HowToUse title="How to use this page" adminOnly={isAdmin} defaultOpen>
+        <p><strong>What this page is for:</strong> A quick snapshot of {isAdmin ? "the whole team's" : "your"} pipeline — notifications, KPIs, upcoming meetings and follow-ups.</p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Check the notification tiles for anything that needs action today.</li>
+          <li>Open upcoming meetings and follow-ups to plan your day.</li>
+          {isAdmin && <li>Review rep activity and commission status across the team.</li>}
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> clear any overdue meetings and follow-ups due today.</p>
+      </HowToUse>
+
+      <HowToUse title="Getting started">
+        <ol>
+          <li>Add or review leads</li>
+          <li>Schedule meetings</li>
+          <li>Log completed visits</li>
+          <li>Mark signed schools</li>
+          <li>Track payment and commission status</li>
+        </ol>
+      </HowToUse>
+
+
+
       {/* Notifications strip */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <NotifTile to="/leads" label="Follow-ups due today" value={followUpsDueToday} tone="warning" />
