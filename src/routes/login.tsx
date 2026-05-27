@@ -141,6 +141,38 @@ function LoginPage() {
                 )}
               </div>
             )}
+            {debug && !finalizing && (
+              <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-semibold text-destructive">Debug report (temporary)</span>
+                  <button
+                    type="button"
+                    onClick={copyDebug}
+                    className="rounded border border-border bg-background px-2 py-1 text-xs font-medium hover:bg-secondary"
+                  >
+                    {copied ? "Copied" : "Copy debug report"}
+                  </button>
+                </div>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono">
+                  <dt className="text-muted-foreground">session exists</dt><dd>{debug.sessionExists ? "yes" : "no"}</dd>
+                  <dt className="text-muted-foreground">access token exists</dt><dd>{debug.accessTokenExists ? "yes" : "no"}</dd>
+                  <dt className="text-muted-foreground">auth user id</dt><dd className="break-all">{debug.authUserId ?? "—"}</dd>
+                  <dt className="text-muted-foreground">auth email</dt><dd className="break-all">{debug.authEmail ?? "—"}</dd>
+                  <dt className="text-muted-foreground">hostname</dt><dd className="break-all">{debug.hostname}</dd>
+                  <dt className="text-muted-foreground">timestamp</dt><dd>{debug.timestamp}</dd>
+                </dl>
+                <div className="mt-2">
+                  <div className="text-muted-foreground">profile query data</div>
+                  <pre className="mt-1 max-h-32 overflow-auto rounded bg-background/60 p-2">{JSON.stringify(debug.profileData, null, 2)}</pre>
+                  <div className="mt-2 text-muted-foreground">profile query error</div>
+                  <pre className="mt-1 max-h-32 overflow-auto rounded bg-background/60 p-2">{JSON.stringify(debug.profileError, null, 2)}</pre>
+                  <div className="mt-2 text-muted-foreground">user_roles query data</div>
+                  <pre className="mt-1 max-h-32 overflow-auto rounded bg-background/60 p-2">{JSON.stringify(debug.userRolesData, null, 2)}</pre>
+                  <div className="mt-2 text-muted-foreground">user_roles query error</div>
+                  <pre className="mt-1 max-h-32 overflow-auto rounded bg-background/60 p-2">{JSON.stringify(debug.userRolesError, null, 2)}</pre>
+                </div>
+              </div>
+            )}
 
             <button
               type="submit" disabled={busy}
