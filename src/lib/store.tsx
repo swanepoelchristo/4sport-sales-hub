@@ -367,6 +367,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await loadAll(profile);
     return profile;
   }, [resolveProfile, loadAll]);
+  const collectDebugReport = useCallback(async (): Promise<DebugReport> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const authUser = session?.user ?? null;
+    let profileData: unknown = null;
+    let profileError: unknown = null;
+    let userRolesData: unknown = null;
+    let userRolesError: unknown = null;
+    if (authUser) {
+      const pr = await supabase.from("profiles").select("*").eq("id", authUser.id).limit(1);
+      profileData = pr.data;
+      profileError = pr.error;
+      const rr = await supabase.from("user_roles").select("*").eq("user_id", authUser.id);
+      userRolesData = rr.data;
+      userRolesError = rr.error;
+    }
+    return {
+      sessionExists: !!session,
+      accessTokenExists: !!session?.access_token,
+      authUserId: authUser?.id ?? null,
+      authEmail: authUser?.email ?? null,
+      profileData,
+      profileError,
+      userRolesData,
+      userRolesError,
+      hostname: typeof window !== "undefined" ? window.location.hostname : "",
+      timestamp: new Date().toISOString(),
+    };
+  }, []);
+
 
 
   const logout = useCallback(async () => {
