@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 import type { Meeting, MeetingStatus, MeetingType } from "@/lib/types";
 import { Plus, X } from "lucide-react";
 
