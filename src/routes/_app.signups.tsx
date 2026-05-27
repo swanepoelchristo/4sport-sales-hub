@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 import {
   commissionAmount, commissionQualified,
   type CommissionPaymentStatus, type CommissionYear, type Signup,
