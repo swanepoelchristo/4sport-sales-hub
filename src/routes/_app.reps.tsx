@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useStore } from "@/lib/store";
 import { PageHeader, EmptyState, StatusBadge } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 import { PROVINCES, SPORTS, type Rep, type Role } from "@/lib/types";
 import { Plus, X, KeyRound, Send, Power } from "lucide-react";
 import {
