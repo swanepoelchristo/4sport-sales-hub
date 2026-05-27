@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader, KpiCard, Section, EmptyState, StatusBadge } from "@/components/ui-bits";
+import { HowToUse } from "@/components/HowToUse";
 import { commissionQualified, commissionAmount } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard });
