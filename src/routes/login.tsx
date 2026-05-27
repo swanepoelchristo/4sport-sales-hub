@@ -50,6 +50,9 @@ function LoginPage() {
     if ("error" in result) {
       setError(result.error);
       console.warn("[login.failed]", trimmed, result.error);
+      if (result.error === PROFILE_LOAD_ERROR) {
+        try { setDebug(await collectDebugReport()); } catch (e) { console.warn("[debug.collect.error]", e); }
+      }
       return;
     }
     void audit("login.success", trimmed);
