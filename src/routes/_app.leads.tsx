@@ -68,7 +68,19 @@ function LeadsPage() {
         }
       />
 
+      <HowToUse>
+        <p><strong>What this page is for:</strong> manage schools, clubs and academies in your pipeline.</p>
+        <p className="mt-2"><strong>What to do here:</strong></p>
+        <ul>
+          <li>Use filters and search to find a lead.</li>
+          <li>Click <em>New lead</em> to add one.</li>
+          <li>Open a lead to update status, contacts and follow-up date.</li>
+        </ul>
+        <p className="mt-2"><strong>Before moving on:</strong> set a next follow-up date so nothing falls through.</p>
+      </HowToUse>
+
       <Section title="Filters">
+
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <input
             placeholder="Search name, city, contact" value={q} onChange={(e) => setQ(e.target.value)}
