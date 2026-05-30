@@ -3,9 +3,30 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: 4sport-sales-hub-web
     container_name: 4sport-dashboard
-    ports:
-      - "3000:3000"
+    restart: unless-stopped
     env_file:
       - .env
-    restart: unless-stopped
+    command: bun run dev --host 0.0.0.0 --port 3000
+    expose:
+      - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+
+      - "traefik.http.routers.4sport-sales-http.rule=Host(`sales.4sport.co.za`)"
+      - "traefik.http.routers.4sport-sales-http.entrypoints=http"
+      - "traefik.http.routers.4sport-sales-http.middlewares=redirect-to-https@docker"
+
+      - "traefik.http.routers.4sport-sales-https.rule=Host(`sales.4sport.co.za`)"
+      - "traefik.http.routers.4sport-sales-https.entrypoints=https"
+      - "traefik.http.routers.4sport-sales-https.tls=true"
+      - "traefik.http.routers.4sport-sales-https.tls.certresolver=letsencrypt"
+
+      - "traefik.http.services.4sport-sales.loadbalancer.server.port=3000"
+
+networks:
+  default:
+    external: true
+    name: coolify

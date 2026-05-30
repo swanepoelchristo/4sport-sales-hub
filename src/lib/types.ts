@@ -90,13 +90,46 @@ export interface Signup {
   id: string;
   lead_id: string;
   rep_id: string;
+
   signed_date: string;
+
   paid: boolean;
   payment_date: string | null;
+
   active_teams: number;
   paying_users_active: boolean;
+
+  deal_type: string;
+
+  base_price: number;
+  quoted_price: number;
+  final_agreed_price: number;
+
+  contract_term: string;
+  pricing_notes: string;
+
+  approval_required: boolean;
+  approved_by: string | null;
+
+  first_payment_received: boolean;
+
+  support_package: string;
+  support_term_months: number;
+  support_response_sla: string;
+  included_support_issues: number;
+  monthly_support_fee: number;
+  rep_support_commission_rate: number;
+  pain_point_notes: string;
+  operational_risk_notes: string;
+
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  risk_score: number;
+  support_tickets_used: number;
+  last_support_contact: string | null;
+
   commission_year: CommissionYear;
   commission_payment_status: CommissionPaymentStatus;
+
   admin_notes: string;
 }
 
@@ -132,11 +165,36 @@ export const COMMISSION_AMOUNTS: Record<CommissionYear, number> = {
   "5th year+": 50,
 };
 
-// Qualification: licence paid (R2,500) + ≥3 active teams + paying users active
+// Flexible enterprise qualification logic
 export function commissionQualified(s: Signup): boolean {
-  return s.paid && s.active_teams >= 3 && s.paying_users_active;
+  return (
+    s.first_payment_received &&
+    s.final_agreed_price > 0
+  );
+}
+
+export function signupCommissionAmount(s: Signup): number {
+  return commissionQualified(s) ? COMMISSION_AMOUNTS[s.commission_year] : 0;
+}
+
+export function supportCommissionAmount(s: Signup): number {
+  const fee = Number(s.monthly_support_fee || 0);
+  const rate = Number(s.rep_support_commission_rate || 0);
+  return Math.round(fee * (rate / 100));
 }
 
 export function commissionAmount(s: Signup): number {
-  return commissionQualified(s) ? COMMISSION_AMOUNTS[s.commission_year] : 0;
+  return signupCommissionAmount(s) + supportCommissionAmount(s);
+}
+
+export function signupRiskLevel(s: Signup): "LOW" | "MEDIUM" | "HIGH" {
+  const score =
+    Number(s.risk_score || 0) +
+    (s.operational_risk_notes?.trim() ? 25 : 0) +
+    (s.support_package !== "None" ? 15 : 0) +
+    (Number(s.support_tickets_used || 0) > Number(s.included_support_issues || 0) ? 30 : 0);
+
+  if (score >= 60) return "HIGH";
+  if (score >= 30) return "MEDIUM";
+  return "LOW";
 }

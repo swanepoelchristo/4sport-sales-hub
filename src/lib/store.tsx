@@ -93,6 +93,35 @@ const signupFromRow = (r: any): Signup => ({
   payment_date: r.payment_date ?? null,
   active_teams: r.active_teams ?? 0,
   paying_users_active: !!r.paying_users_active,
+
+  deal_type: r.deal_type ?? "School",
+
+  base_price: Number(r.base_price ?? 2500),
+  quoted_price: Number(r.quoted_price ?? 2500),
+  final_agreed_price: Number(r.final_agreed_price ?? 2500),
+
+  contract_term: r.contract_term ?? "Annual",
+  pricing_notes: r.pricing_notes ?? "",
+
+  approval_required: !!r.approval_required,
+  approved_by: r.approved_by ?? null,
+
+  first_payment_received: !!r.first_payment_received,
+
+  support_package: r.support_package ?? "None",
+  support_term_months: Number(r.support_term_months ?? 0),
+  support_response_sla: r.support_response_sla ?? "",
+  included_support_issues: Number(r.included_support_issues ?? 0),
+  monthly_support_fee: Number(r.monthly_support_fee ?? 0),
+  rep_support_commission_rate: Number(r.rep_support_commission_rate ?? 1.5),
+  pain_point_notes: r.pain_point_notes ?? "",
+  operational_risk_notes: r.operational_risk_notes ?? "",
+
+  risk_level: r.risk_level ?? "LOW",
+  risk_score: Number(r.risk_score ?? 0),
+  support_tickets_used: Number(r.support_tickets_used ?? 0),
+  last_support_contact: r.last_support_contact ?? null,
+
   commission_year: r.commission_year,
   commission_payment_status: r.commission_payment_status,
   admin_notes: r.admin_notes ?? "",
@@ -165,8 +194,39 @@ const meetingToRow = (m: Meeting) => ({
 const signupToRow = (s: Signup) => ({
   id: s.id, lead_id: s.lead_id, rep_id: s.rep_id || null,
   signed_date: s.signed_date, paid: s.paid, payment_date: s.payment_date,
-  active_teams: s.active_teams, paying_users_active: s.paying_users_active,
-  commission_year: s.commission_year, commission_payment_status: s.commission_payment_status,
+  active_teams: s.active_teams,
+  paying_users_active: s.paying_users_active,
+
+  deal_type: s.deal_type,
+
+  base_price: s.base_price,
+  quoted_price: s.quoted_price,
+  final_agreed_price: s.final_agreed_price,
+
+  contract_term: s.contract_term,
+  pricing_notes: s.pricing_notes,
+
+  approval_required: s.approval_required,
+  approved_by: s.approved_by,
+
+  first_payment_received: s.first_payment_received,
+
+  support_package: s.support_package,
+  support_term_months: s.support_term_months,
+  support_response_sla: s.support_response_sla,
+  included_support_issues: s.included_support_issues,
+  monthly_support_fee: s.monthly_support_fee,
+  rep_support_commission_rate: s.rep_support_commission_rate,
+  pain_point_notes: s.pain_point_notes,
+  operational_risk_notes: s.operational_risk_notes,
+
+  risk_level: s.risk_level,
+  risk_score: s.risk_score,
+  support_tickets_used: s.support_tickets_used,
+  last_support_contact: s.last_support_contact,
+
+  commission_year: s.commission_year,
+  commission_payment_status: s.commission_payment_status,
   admin_notes: s.admin_notes,
 });
 

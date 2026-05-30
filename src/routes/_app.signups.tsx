@@ -4,7 +4,7 @@ import { useStore } from "@/lib/store";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
 import { HowToUse } from "@/components/HowToUse";
 import {
-  commissionAmount, commissionQualified,
+  commissionAmount, commissionQualified, signupRiskLevel,
   type CommissionPaymentStatus, type CommissionYear, type Signup,
 } from "@/lib/types";
 import { Plus, X } from "lucide-react";
@@ -41,6 +41,35 @@ function SignupsPage() {
     payment_date: null,
     active_teams: 0,
     paying_users_active: false,
+
+    deal_type: "School",
+
+    base_price: 2500,
+    quoted_price: 2500,
+    final_agreed_price: 2500,
+
+    contract_term: "12 months",
+    pricing_notes: "",
+
+    approval_required: false,
+    approved_by: null,
+
+    first_payment_received: false,
+
+    support_package: "None",
+    support_term_months: 0,
+    support_response_sla: "",
+    included_support_issues: 0,
+    monthly_support_fee: 0,
+    rep_support_commission_rate: 1.5,
+    pain_point_notes: "",
+    operational_risk_notes: "",
+
+    risk_level: "LOW",
+    risk_score: 0,
+    support_tickets_used: 0,
+    last_support_contact: null,
+
     commission_year: "1st year",
     commission_payment_status: "Pending",
     admin_notes: "",
@@ -97,8 +126,9 @@ function SignupsPage() {
       </div>
 
       <div className="mb-6 rounded-xl border border-border bg-card/50 p-4 text-xs text-muted-foreground">
-        <strong className="text-foreground">Qualification:</strong> R2,500 annual school licence paid · ≥ 3 active sport teams · paying athletes/users active.
-        Commission per year: R500 / R300 / R200 / R100 / R50.
+        <strong className="text-foreground">Enterprise pricing enabled:</strong>
+        pricing can now be negotiated per school, club, federation or enterprise customer.
+        Commission is based on confirmed signed deals and payment received.
       </div>
 
       {showForm && (
@@ -118,14 +148,162 @@ function SignupsPage() {
           )}
           <Lbl label="Signed date"><input className={inp} type="date" value={form.signed_date.slice(0, 10)} onChange={(e) => setForm({ ...form, signed_date: e.target.value })} /></Lbl>
           <Lbl label="Payment date"><input className={inp} type="date" value={form.payment_date ? form.payment_date.slice(0, 10) : ""} onChange={(e) => setForm({ ...form, payment_date: e.target.value || null })} /></Lbl>
-          <Lbl label="Active teams"><input className={inp} type="number" min={0} value={form.active_teams} onChange={(e) => setForm({ ...form, active_teams: parseInt(e.target.value) || 0 })} /></Lbl>
+          <Lbl label="Active teams">
+            <input
+              className={inp}
+              type="number"
+              min={0}
+              value={form.active_teams}
+              onChange={(e) =>
+                setForm({ ...form, active_teams: Number(e.target.value) || 0 })
+              }
+              onBlur={() =>
+                setForm({ ...form, active_teams: Number(form.active_teams) || 0 })
+              }
+            />
+          </Lbl>
+
+          <Lbl label="Deal type">
+            <select
+              className={inp}
+              value={form.deal_type}
+              onChange={(e) => setForm({ ...form, deal_type: e.target.value })}
+            >
+              <option>School</option>
+              <option>Club</option>
+              <option>Academy</option>
+              <option>Federation</option>
+              <option>Provincial Union</option>
+              <option>National Body</option>
+              <option>Enterprise</option>
+            </select>
+          </Lbl>
+
+          <Lbl label="Base price">
+            <input
+              className={inp}
+              type="number"
+              value={form.base_price}
+              onChange={(e) =>
+                setForm({ ...form, base_price: parseInt(e.target.value) || 0 })
+              }
+            />
+          </Lbl>
+
+          <Lbl label="Quoted price">
+            <input
+              className={inp}
+              type="number"
+              value={form.quoted_price}
+              onChange={(e) =>
+                setForm({ ...form, quoted_price: parseInt(e.target.value) || 0 })
+              }
+            />
+          </Lbl>
+
+          <Lbl label="Final agreed price">
+            <input
+              className={inp}
+              type="number"
+              value={form.final_agreed_price}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  final_agreed_price: parseInt(e.target.value) || 0
+                })
+              }
+            />
+          </Lbl>
+
+          <Lbl label="Contract term">
+            <input
+              className={inp}
+              value={form.contract_term}
+              onChange={(e) =>
+                setForm({ ...form, contract_term: e.target.value })
+              }
+            />
+          </Lbl>
+
+          <Lbl label="Pricing notes" full>
+            <textarea
+              className={inp + " min-h-20"}
+              value={form.pricing_notes}
+              onChange={(e) =>
+                setForm({ ...form, pricing_notes: e.target.value })
+              }
+            />
+          </Lbl>
+
+
+          <Lbl label="Support package">
+            <select className={inp} value={form.support_package} onChange={(e) => setForm({ ...form, support_package: e.target.value })}>
+              <option>None</option>
+              <option>Starter Assist</option>
+              <option>Match Day Support</option>
+              <option>Club Ops Support</option>
+              <option>Federation Ops</option>
+              <option>White Glove Ops</option>
+              <option>Custom</option>
+            </select>
+          </Lbl>
+
+          <Lbl label="Support term months">
+            <input className={inp} type="number" min={0} value={form.support_term_months} onChange={(e) => setForm({ ...form, support_term_months: Number(e.target.value) || 0 })} onBlur={() => setForm({ ...form, support_term_months: Number(form.support_term_months) || 0 })} />
+          </Lbl>
+
+          <Lbl label="Response SLA">
+            <input className={inp} placeholder="e.g. within 1 hour" value={form.support_response_sla} onChange={(e) => setForm({ ...form, support_response_sla: e.target.value })} />
+          </Lbl>
+
+          <Lbl label="Included issues">
+            <input className={inp} type="number" min={0} value={form.included_support_issues} onChange={(e) => setForm({ ...form, included_support_issues: Number(e.target.value) || 0 })} onBlur={() => setForm({ ...form, included_support_issues: Number(form.included_support_issues) || 0 })} />
+          </Lbl>
+
+          <Lbl label="Monthly support fee">
+            <input className={inp} type="number" min={0} value={form.monthly_support_fee} onChange={(e) => setForm({ ...form, monthly_support_fee: Number(e.target.value) || 0 })} onBlur={() => setForm({ ...form, monthly_support_fee: Number(form.monthly_support_fee) || 0 })} />
+          </Lbl>
+
+          <Lbl label="Rep support commission %">
+            <input className={inp} type="number" min={0} step="0.1" value={form.rep_support_commission_rate} onChange={(e) => setForm({ ...form, rep_support_commission_rate: Number(e.target.value) || 0 })} />
+          </Lbl>
+
+          <Lbl label="Customer pain points" full>
+            <textarea className={inp + " min-h-20"} placeholder="What problem are we solving for this club/school?" value={form.pain_point_notes} onChange={(e) => setForm({ ...form, pain_point_notes: e.target.value })} />
+          </Lbl>
+
+          <Lbl label="Support tickets used">
+            <input className={inp} type="number" min={0} value={form.support_tickets_used} onChange={(e) => setForm({ ...form, support_tickets_used: Number(e.target.value) || 0 })} />
+          </Lbl>
+
+          <Lbl label="Manual risk score">
+            <input className={inp} type="number" min={0} max={100} value={form.risk_score} onChange={(e) => setForm({ ...form, risk_score: Number(e.target.value) || 0 })} />
+          </Lbl>
+
+          <Lbl label="Operational risk notes" full>
+            <textarea className={inp + " min-h-20"} placeholder="Where could they blame the app? What support must we promise?" value={form.operational_risk_notes} onChange={(e) => setForm({ ...form, operational_risk_notes: e.target.value })} />
+          </Lbl>
+
           <Lbl label="Commission year">
             <select className={inp} value={form.commission_year} onChange={(e) => setForm({ ...form, commission_year: e.target.value as CommissionYear })}>
               {YEARS.map((y) => <option key={y}>{y}</option>)}
             </select>
           </Lbl>
           <Lbl label="Paid">
-            <label className="flex items-center gap-2 py-2"><input type="checkbox" checked={form.paid} onChange={(e) => setForm({ ...form, paid: e.target.checked })} /> R2,500 licence paid</label>
+            <label className="flex items-center gap-2 py-2">
+              <input
+                type="checkbox"
+                checked={form.first_payment_received}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    first_payment_received: e.target.checked,
+                    paid: e.target.checked
+                  })
+                }
+              />
+              First payment received
+            </label>
           </Lbl>
           <Lbl label="Paying users active">
             <label className="flex items-center gap-2 py-2"><input type="checkbox" checked={form.paying_users_active} onChange={(e) => setForm({ ...form, paying_users_active: e.target.checked })} /> Athletes/users active</label>
@@ -154,6 +332,9 @@ function SignupsPage() {
                   <th className="px-4 py-2 text-left">Teams</th>
                   <th className="px-4 py-2 text-left">Users</th>
                   <th className="px-4 py-2 text-left">Year</th>
+                  <th className="px-4 py-2 text-left">Support</th>
+                  <th className="px-4 py-2 text-right">Support Fee</th>
+                  <th className="px-4 py-2 text-left">Risk</th>
                   <th className="px-4 py-2 text-left">Qualified</th>
                   <th className="px-4 py-2 text-right">Amount</th>
                   <th className="px-4 py-2 text-left">Status</th>
@@ -171,6 +352,9 @@ function SignupsPage() {
                       <td className="px-4 py-3">{s.active_teams}</td>
                       <td className="px-4 py-3">{s.paying_users_active ? "Yes" : "No"}</td>
                       <td className="px-4 py-3">{s.commission_year}</td>
+                      <td className="px-4 py-3">{s.support_package}</td>
+                      <td className="px-4 py-3 text-right">R {Number(s.monthly_support_fee || 0).toLocaleString("en-ZA")}</td>
+                      <td className="px-4 py-3"><RiskBadge level={signupRiskLevel(s)} /></td>
                       <td className="px-4 py-3"><StatusBadge tone={q ? "success" : "neutral"}>{q ? "Yes" : "No"}</StatusBadge></td>
                       <td className="px-4 py-3 text-right font-medium">R {commissionAmount(s).toLocaleString("en-ZA")}</td>
                       <td className="px-4 py-3">
@@ -209,6 +393,8 @@ function SignupsPage() {
                     <span>Paid: {s.paid ? "Yes" : "No"}</span>
                     <span>Teams: {s.active_teams}</span>
                     <span>Users: {s.paying_users_active ? "Active" : "Not active"}</span>
+                    <span>Support: {s.support_package}</span>
+                    <span>Support fee: R {Number(s.monthly_support_fee || 0).toLocaleString("en-ZA")}</span>
                     <span className="font-medium text-foreground">R {commissionAmount(s).toLocaleString("en-ZA")}</span>
                   </div>
                   <div className="mt-2"><StatusBadge tone={s.commission_payment_status === "Paid" ? "success" : "info"}>{s.commission_payment_status}</StatusBadge></div>
@@ -238,5 +424,21 @@ function Lbl({ label, children, full }: { label: string; children: React.ReactNo
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
+  );
+}
+
+
+function RiskBadge({ level }: { level: "LOW" | "MEDIUM" | "HIGH" }) {
+  const cls =
+    level === "HIGH"
+      ? "border-red-500/40 bg-red-500/10 text-red-300"
+      : level === "MEDIUM"
+        ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-300"
+        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+
+  return (
+    <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${cls}`}>
+      {level}
+    </span>
   );
 }

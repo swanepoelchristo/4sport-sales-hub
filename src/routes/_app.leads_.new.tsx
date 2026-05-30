@@ -15,9 +15,14 @@ function blank(repId: string): Omit<Lead, "id" | "created_at"> {
 }
 
 function NewLead() {
-  const { user } = useStore();
+  const { user, state } = useStore();
   if (!user) return null;
-  return <LeadForm initial={blank(user.id)} mode="create" />;
+
+  const repId = user.role === "admin"
+    ? state.reps[0]?.id ?? user.id
+    : state.reps.find((r) => r.user_id === user.id)?.id ?? user.id;
+
+  return <LeadForm initial={blank(repId)} mode="create" />;
 }
 
 export function LeadForm({

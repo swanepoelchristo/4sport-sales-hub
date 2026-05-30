@@ -4,7 +4,17 @@ import { useStore } from "@/lib/store";
 import { Logo } from "./Logo";
 import { IdleTimer } from "./IdleTimer";
 import {
-  LayoutDashboard, Users, Calendar, Building2, Banknote, UserCog, History, LogOut, ShieldCheck, BarChart3,
+  LayoutDashboard,
+  Users,
+  Calendar,
+  Building2,
+  Banknote,
+  UserCog,
+  History,
+  LogOut,
+  ShieldCheck,
+  BarChart3,
+  Headset,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
@@ -14,6 +24,7 @@ const NAV: NavItem[] = [
   { to: "/leads", label: "Leads", icon: Building2 },
   { to: "/meetings", label: "Meetings", icon: Calendar },
   { to: "/signups", label: "Signups", icon: Banknote },
+  { to: "/support", label: "Support", icon: Headset },
   { to: "/performance", label: "Performance", icon: BarChart3, adminOnly: true },
   { to: "/reps", label: "Reps", icon: UserCog, adminOnly: true },
   { to: "/activity", label: "Activity", icon: History, adminOnly: true },
