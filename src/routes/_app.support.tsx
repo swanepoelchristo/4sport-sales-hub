@@ -21,16 +21,22 @@ type Ticket = {
   resolved_at: string | null;
   resolution_notes: string;
   customer_happy: boolean;
+  internal_notes: string | null;
+  assigned_to_name: string | null;
+  handled_by_name: string | null;
+  last_updated_by_name: string | null;
 };
 
 const CATEGORIES = ["General", "Match Day Ops", "Login/Auth", "Team Setup", "Communication", "Training", "Billing", "Other"];
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const STATUSES = ["Open", "In Progress", "Resolved"];
+const STAFF_OPTIONS = ["Unassigned", "Christo", "Mariaan", "Support 1", "Game Day Ops"];
 
 function SupportPage() {
   const { state, user } = useStore();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [busy, setBusy] = useState(false);
+  const [currentStaff, setCurrentStaff] = useState("Christo");
   const [form, setForm] = useState({
     signup_id: state.signups[0]?.id ?? "",
     category: "General",
@@ -83,6 +89,9 @@ function SupportPage() {
       title: form.title.trim(),
       description: form.description.trim(),
       sla_hours: Number(form.sla_hours || 1),
+      assigned_to_name: "Unassigned",
+      handled_by_name: "Unassigned",
+      last_updated_by_name: currentStaff,
     });
 
     setBusy(false);
@@ -98,7 +107,12 @@ function SupportPage() {
   };
 
   const updateTicket = async (id: string, patch: Partial<Ticket>) => {
-    const { error } = await supabase.from("support_tickets").update(patch).eq("id", id);
+    const accountabilityPatch = {
+      ...patch,
+      last_updated_by_name: currentStaff,
+    };
+
+    const { error } = await supabase.from("support_tickets").update(accountabilityPatch).eq("id", id);
     if (error) {
       console.error("[support ticket update]", error);
       alert(error.message);
@@ -118,6 +132,28 @@ function SupportPage() {
         <Mini label="Open" value={openCount} />
         <Mini label="High risk" value={highRisk} />
         <Mini label="Overdue SLA" value={overdue} />
+      </div>
+
+      <div className="mb-6 rounded-xl border border-border bg-card p-4">
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Current staff member
+          </span>
+          <select
+            className={inp + " mt-1 max-w-xs"}
+            value={currentStaff}
+            onChange={(e) => setCurrentStaff(e.target.value)}
+          >
+            {STAFF_OPTIONS.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Changes made below will be logged as updated by this staff member.
+        </p>
       </div>
 
       <form onSubmit={submit} className="mb-6 grid gap-3 rounded-xl border border-border bg-card p-5 md:grid-cols-2">
@@ -171,7 +207,38 @@ function SupportPage() {
             {tickets.map((t) => {
               const signup = signupById(t.signup_id);
               const lead = leadById(signup?.lead_id ?? t.lead_id);
-              const isOverdue = t.status !== "Resolved" && Date.now() > new Date(t.opened_at).getTime() + Number(t.sla_hours || 0) * 60 * 60 * 1000;
+              const opened = new Date(t.opened_at).getTime();
+              const slaMs = Number(t.sla_hours || 0) * 60 * 60 * 1000;
+              const due = opened + slaMs;
+              const remainingMs = due - Date.now();
+
+              const isOverdue =
+                t.status !== "Resolved" && remainingMs < 0;
+
+              const nearingBreach =
+                t.status !== "Resolved" &&
+                remainingMs > 0 &&
+                remainingMs < 30 * 60 * 1000;
+
+              const ageMinutes = Math.floor((Date.now() - opened) / 60000);
+
+              let ageLabel = "";
+              if (ageMinutes < 60) {
+                ageLabel = `${ageMinutes} min open`;
+              } else if (ageMinutes < 1440) {
+                ageLabel = `${Math.floor(ageMinutes / 60)}h open`;
+              } else {
+                ageLabel = `${Math.floor(ageMinutes / 1440)}d open`;
+              }
+
+              let slaLabel = "";
+              if (isOverdue) {
+                slaLabel = "SLA BREACHED";
+              } else if (nearingBreach) {
+                slaLabel = "NEAR SLA LIMIT";
+              } else {
+                slaLabel = "WITHIN SLA";
+              }
 
               return (
                 <div key={t.id} className="rounded-xl border border-border bg-card p-4">
@@ -179,14 +246,118 @@ function SupportPage() {
                     <div>
                       <p className="font-semibold">{t.title}</p>
                       <p className="text-xs text-muted-foreground">{lead?.org_name ?? "Unknown client"} · {t.category} · SLA {t.sla_hours}h</p>
+                      {t.description?.startsWith("WA:") && (
+                        <p className="mt-1 text-xs text-cyan-400">
+                          WhatsApp origin detected · {t.description}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <StatusBadge tone={t.severity === "CRITICAL" || t.severity === "HIGH" ? "danger" : t.severity === "MEDIUM" ? "warning" : "success"}>{t.severity}</StatusBadge>
-                      <StatusBadge tone={isOverdue ? "danger" : t.status === "Resolved" ? "success" : "info"}>{isOverdue ? "SLA OVERDUE" : t.status}</StatusBadge>
+                      <StatusBadge
+                        tone={
+                          isOverdue
+                            ? "danger"
+                            : nearingBreach
+                            ? "warning"
+                            : t.status === "Resolved"
+                            ? "success"
+                            : "info"
+                        }
+                      >
+                        {slaLabel}
+                      </StatusBadge>
                     </div>
                   </div>
 
-                  {t.description && <p className="mt-3 text-sm text-muted-foreground">{t.description}</p>}
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full border border-border px-2 py-1">
+                      {ageLabel}
+                    </span>
+
+                    <span className={`rounded-full px-2 py-1 ${
+                      isOverdue
+                        ? "bg-red-500/20 text-red-300"
+                        : nearingBreach
+                        ? "bg-yellow-500/20 text-yellow-300"
+                        : "bg-emerald-500/20 text-emerald-300"
+                    }`}>
+                      {slaLabel}
+                    </span>
+                  </div>
+
+                  {t.description && (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {t.description}
+                    </p>
+                  )}
+
+                  <div className="mt-4 grid gap-3 rounded-lg border border-border bg-secondary/40 p-3 md:grid-cols-3">
+                    <label className="block">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Assigned to
+                      </span>
+                      <select
+                        className="mt-1 w-full rounded border border-input bg-secondary px-2 py-2 text-xs"
+                        value={t.assigned_to_name ?? "Unassigned"}
+                        onChange={(e) =>
+                          updateTicket(
+                            t.id,
+                            { assigned_to_name: e.target.value } as Partial<Ticket>
+                          )
+                        }
+                      >
+                        {STAFF_OPTIONS.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Handled by
+                      </span>
+                      <select
+                        className="mt-1 w-full rounded border border-input bg-secondary px-2 py-2 text-xs"
+                        value={t.handled_by_name ?? "Unassigned"}
+                        onChange={(e) =>
+                          updateTicket(
+                            t.id,
+                            { handled_by_name: e.target.value } as Partial<Ticket>
+                          )
+                        }
+                      >
+                        {STAFF_OPTIONS.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div>
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Last updated by
+                      </span>
+                      <p className="mt-2 text-xs">
+                        {t.last_updated_by_name ?? "System"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <textarea
+                    className="mt-3 w-full rounded border border-input bg-secondary px-3 py-2 text-sm"
+                    placeholder="Internal notes / handover notes"
+                    value={t.internal_notes ?? ""}
+                    onChange={(e) =>
+                      updateTicket(
+                        t.id,
+                        { internal_notes: e.target.value } as Partial<Ticket>
+                      )
+                    }
+                  />
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <select className="rounded border border-input bg-secondary px-2 py-1 text-xs" value={t.status} onChange={(e) => updateTicket(t.id, { status: e.target.value } as Partial<Ticket>)}>
