@@ -27,6 +27,17 @@ type Ticket = {
   last_updated_by_name: string | null;
 };
 
+type TicketActivity = {
+  id: string;
+  ticket_id: string;
+  action_type: string;
+  field_name: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  actor_name: string | null;
+  created_at: string;
+};
+
 const CATEGORIES = ["General", "Match Day Ops", "Login/Auth", "Team Setup", "Communication", "Training", "Billing", "Other"];
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const STATUSES = ["Open", "In Progress", "Resolved"];
@@ -35,6 +46,8 @@ const STAFF_OPTIONS = ["Unassigned", "Christo", "Mariaan", "Support 1", "Game Da
 function SupportPage() {
   const { state, user } = useStore();
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [activitiesByTicket, setActivitiesByTicket] = useState<Record<string, TicketActivity[]>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [currentStaff, setCurrentStaff] = useState("Christo");
   const [form, setForm] = useState({
@@ -55,8 +68,47 @@ function SupportPage() {
       .select("*")
       .order("opened_at", { ascending: false });
 
-    if (error) console.error("[support tickets load]", error);
-    else setTickets((data ?? []) as Ticket[]);
+    if (error) {
+      console.error("[support tickets load]", error);
+      return;
+    }
+
+    const loadedTickets = (data ?? []) as Ticket[];
+    setTickets(loadedTickets);
+
+    setNoteDrafts((prev) => {
+      const next = { ...prev };
+      for (const ticket of loadedTickets) {
+        if (next[ticket.id] === undefined) {
+          next[ticket.id] = ticket.internal_notes ?? "";
+        }
+      }
+      return next;
+    });
+
+    const ticketIds = loadedTickets.map((ticket) => ticket.id);
+    if (ticketIds.length === 0) {
+      setActivitiesByTicket({});
+      return;
+    }
+
+    const { data: activityData, error: activityError } = await supabase
+      .from("support_ticket_activity")
+      .select("*")
+      .in("ticket_id", ticketIds)
+      .order("created_at", { ascending: false });
+
+    if (activityError) {
+      console.error("[support ticket activity load]", activityError);
+      return;
+    }
+
+    const grouped: Record<string, TicketActivity[]> = {};
+    for (const item of (activityData ?? []) as TicketActivity[]) {
+      grouped[item.ticket_id] = grouped[item.ticket_id] ?? [];
+      grouped[item.ticket_id].push(item);
+    }
+    setActivitiesByTicket(grouped);
   };
 
   useEffect(() => {
@@ -107,6 +159,8 @@ function SupportPage() {
   };
 
   const updateTicket = async (id: string, patch: Partial<Ticket>) => {
+    const currentTicket = tickets.find((ticket) => ticket.id === id);
+
     const accountabilityPatch = {
       ...patch,
       last_updated_by_name: currentStaff,
@@ -118,6 +172,33 @@ function SupportPage() {
       alert(error.message);
       return;
     }
+
+    const activityRows = Object.entries(patch)
+      .filter(([fieldName]) => fieldName !== "last_updated_by_name")
+      .map(([fieldName, newValue]) => {
+        const oldValue = currentTicket?.[fieldName as keyof Ticket];
+
+        return {
+          ticket_id: id,
+          action_type: "field_updated",
+          field_name: fieldName,
+          old_value: oldValue === null || oldValue === undefined ? null : String(oldValue),
+          new_value: newValue === null || newValue === undefined ? null : String(newValue),
+          actor_name: currentStaff,
+        };
+      })
+      .filter((row) => row.old_value !== row.new_value);
+
+    if (activityRows.length > 0) {
+      const { error: activityError } = await supabase
+        .from("support_ticket_activity")
+        .insert(activityRows);
+
+      if (activityError) {
+        console.error("[support ticket activity insert]", activityError);
+      }
+    }
+
     await loadTickets();
   };
 
@@ -350,13 +431,22 @@ function SupportPage() {
                   <textarea
                     className="mt-3 w-full rounded border border-input bg-secondary px-3 py-2 text-sm"
                     placeholder="Internal notes / handover notes"
-                    value={t.internal_notes ?? ""}
+                    value={noteDrafts[t.id] ?? t.internal_notes ?? ""}
                     onChange={(e) =>
-                      updateTicket(
-                        t.id,
-                        { internal_notes: e.target.value } as Partial<Ticket>
-                      )
+                      setNoteDrafts((prev) => ({
+                        ...prev,
+                        [t.id]: e.target.value,
+                      }))
                     }
+                    onBlur={() => {
+                      const nextNotes = noteDrafts[t.id] ?? "";
+                      if (nextNotes !== (t.internal_notes ?? "")) {
+                        void updateTicket(
+                          t.id,
+                          { internal_notes: nextNotes } as Partial<Ticket>
+                        );
+                      }
+                    }}
                   />
 
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -371,6 +461,38 @@ function SupportPage() {
                     <button type="button" onClick={() => updateTicket(t.id, { resolved_at: new Date().toISOString(), status: "Resolved", customer_happy: true } as Partial<Ticket>)} className="rounded border border-border px-3 py-1 text-xs">
                       Resolve happy
                     </button>
+                  </div>
+
+                  <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Ticket activity timeline
+                    </p>
+
+                    {(activitiesByTicket[t.id] ?? []).length === 0 ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        No activity logged yet.
+                      </p>
+                    ) : (
+                      <div className="mt-2 space-y-2">
+                        {(activitiesByTicket[t.id] ?? []).slice(0, 8).map((activity) => (
+                          <div key={activity.id} className="rounded border border-border bg-card/50 p-2 text-xs">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-semibold">
+                                {activity.field_name ?? activity.action_type}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {new Date(activity.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-muted-foreground">
+                              {activity.actor_name ?? "System"} changed {activity.field_name ?? "ticket"} from{" "}
+                              <span className="text-foreground">{activity.old_value ?? "blank"}</span> to{" "}
+                              <span className="text-foreground">{activity.new_value ?? "blank"}</span>
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
