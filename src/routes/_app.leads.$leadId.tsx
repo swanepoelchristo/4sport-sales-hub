@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { LeadForm, useEditableLead } from "./_app.leads.new";
+import { LeadForm, useEditableLead } from "./_app.leads_.new";
 import { PageHeader } from "@/components/ui-bits";
 import { LeadAttachments } from "@/components/LeadAttachments";
 import { LeadTimeline } from "@/components/LeadTimeline";
