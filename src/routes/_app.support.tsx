@@ -25,6 +25,7 @@ type Ticket = {
   assigned_to_name: string | null;
   handled_by_name: string | null;
   last_updated_by_name: string | null;
+  queue_type: string | null;
 };
 
 type TicketActivity = {
@@ -42,6 +43,57 @@ const CATEGORIES = ["General", "Match Day Ops", "Login/Auth", "Team Setup", "Com
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const STATUSES = ["Open", "In Progress", "Resolved"];
 const STAFF_OPTIONS = ["Unassigned", "Christo", "Mariaan", "Support 1", "Game Day Ops"];
+const QUEUE_TYPES = ["All", "Support", "Sales", "Game Day Ops", "Billing", "General"];
+
+const nowIso = () => new Date().toISOString();
+
+function parseTimeMs(value: string | null | undefined) {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function formatDateTime(value: string | null | undefined) {
+  const ms = parseTimeMs(value);
+  if (ms === null) return "Not set";
+
+  return new Date(ms).toLocaleString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+function formatDurationMs(ms: number) {
+  if (!Number.isFinite(ms)) return "unknown";
+  if (ms < 0) return "invalid time";
+
+  const totalMinutes = Math.floor(ms / 60000);
+  if (totalMinutes < 1) return "under 1 min";
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours < 24) return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return remainingHours ? `${days}d ${remainingHours}h` : `${days}d`;
+}
+
+function getFirstResponseLabel(ticket: Ticket) {
+  const opened = parseTimeMs(ticket.opened_at);
+  const firstResponse = parseTimeMs(ticket.first_response_at);
+
+  if (opened === null) return "Opened time invalid";
+  if (firstResponse === null) return "First response: not marked yet";
+
+  return `First response: ${formatDurationMs(firstResponse - opened)} after open`;
+}
 
 function SupportPage() {
   const { state, user } = useStore();
@@ -50,6 +102,7 @@ function SupportPage() {
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [currentStaff, setCurrentStaff] = useState("Christo");
+  const [queueFilter, setQueueFilter] = useState("All");
   const [form, setForm] = useState({
     signup_id: state.signups[0]?.id ?? "",
     category: "General",
@@ -126,6 +179,11 @@ function SupportPage() {
     }).length;
   }, [tickets]);
 
+  const visibleTickets = useMemo(() => {
+    if (queueFilter === "All") return tickets;
+    return tickets.filter((ticket) => (ticket.queue_type ?? "Support") === queueFilter);
+  }, [tickets, queueFilter]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.signup_id || !form.title.trim()) return;
@@ -144,6 +202,7 @@ function SupportPage() {
       assigned_to_name: "Unassigned",
       handled_by_name: "Unassigned",
       last_updated_by_name: currentStaff,
+      queue_type: "Support",
     });
 
     setBusy(false);
@@ -237,6 +296,28 @@ function SupportPage() {
         </p>
       </div>
 
+      <div className="mb-6 rounded-xl border border-border bg-card p-4">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Queue filter
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {QUEUE_TYPES.map((queue) => (
+            <button
+              key={queue}
+              type="button"
+              onClick={() => setQueueFilter(queue)}
+              className={`rounded-full border px-3 py-1 text-xs ${
+                queueFilter === queue
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border"
+              }`}
+            >
+              {queue}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={submit} className="mb-6 grid gap-3 rounded-xl border border-border bg-card p-5 md:grid-cols-2">
         <Lbl label="Client / signup">
           <select className={inp} required value={form.signup_id} onChange={(e) => setForm({ ...form, signup_id: e.target.value })}>
@@ -280,12 +361,12 @@ function SupportPage() {
         </div>
       </form>
 
-      {tickets.length === 0 ? (
-        <EmptyState>No support tickets yet.</EmptyState>
+      {visibleTickets.length === 0 ? (
+        <EmptyState>No support tickets in this queue.</EmptyState>
       ) : (
         <Section title="Ticket queue">
           <div className="space-y-3">
-            {tickets.map((t) => {
+            {visibleTickets.map((t) => {
               const signup = signupById(t.signup_id);
               const lead = leadById(signup?.lead_id ?? t.lead_id);
               const opened = new Date(t.opened_at).getTime();
@@ -327,6 +408,9 @@ function SupportPage() {
                     <div>
                       <p className="font-semibold">{t.title}</p>
                       <p className="text-xs text-muted-foreground">{lead?.org_name ?? "Unknown client"} · {t.category} · SLA {t.sla_hours}h</p>
+                      <span className="mt-2 inline-flex rounded-full border border-border px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Queue: {t.queue_type ?? "Support"}
+                      </span>
                       {t.description?.startsWith("WA:") && (
                         <p className="mt-1 text-xs text-cyan-400">
                           WhatsApp origin detected · {t.description}
@@ -367,13 +451,49 @@ function SupportPage() {
                     </span>
                   </div>
 
+                  <div className="mt-3 grid gap-2 rounded-lg border border-border bg-secondary/30 p-3 text-xs md:grid-cols-3">
+                    <div>
+                      <span className="text-muted-foreground">Opened</span>
+                      <p>{formatDateTime(t.opened_at)}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">First response</span>
+                      <p>{formatDateTime(t.first_response_at)}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Response time</span>
+                      <p>{getFirstResponseLabel(t)}</p>
+                    </div>
+                  </div>
+
                   {t.description && (
                     <p className="mt-3 text-sm text-muted-foreground">
                       {t.description}
                     </p>
                   )}
 
-                  <div className="mt-4 grid gap-3 rounded-lg border border-border bg-secondary/40 p-3 md:grid-cols-3">
+                  <div className="mt-4 grid gap-3 rounded-lg border border-border bg-secondary/40 p-3 md:grid-cols-4">
+                    <label className="block">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Queue
+                      </span>
+                      <select
+                        className="mt-1 w-full rounded border border-input bg-secondary px-2 py-2 text-xs"
+                        value={t.queue_type ?? "Support"}
+                        onChange={(e) =>
+                          updateTicket(
+                            t.id,
+                            { queue_type: e.target.value } as Partial<Ticket>
+                          )
+                        }
+                      >
+                        {QUEUE_TYPES.filter((queue) => queue !== "All").map((queue) => (
+                          <option key={queue} value={queue}>
+                            {queue}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="block">
                       <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         Assigned to
@@ -454,11 +574,21 @@ function SupportPage() {
                       {STATUSES.map((s) => <option key={s}>{s}</option>)}
                     </select>
 
-                    <button type="button" onClick={() => updateTicket(t.id, { first_response_at: new Date().toISOString(), status: "In Progress" } as Partial<Ticket>)} className="rounded border border-border px-3 py-1 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const patch: Partial<Ticket> = { status: "In Progress" };
+                        if (!t.first_response_at) {
+                          patch.first_response_at = nowIso();
+                        }
+                        void updateTicket(t.id, patch);
+                      }}
+                      className="rounded border border-border px-3 py-1 text-xs"
+                    >
                       Mark first response
                     </button>
 
-                    <button type="button" onClick={() => updateTicket(t.id, { resolved_at: new Date().toISOString(), status: "Resolved", customer_happy: true } as Partial<Ticket>)} className="rounded border border-border px-3 py-1 text-xs">
+                    <button type="button" onClick={() => updateTicket(t.id, { resolved_at: nowIso(), status: "Resolved", customer_happy: true } as Partial<Ticket>)} className="rounded border border-border px-3 py-1 text-xs">
                       Resolve happy
                     </button>
                   </div>
@@ -481,7 +611,7 @@ function SupportPage() {
                                 {activity.field_name ?? activity.action_type}
                               </span>
                               <span className="text-muted-foreground">
-                                {new Date(activity.created_at).toLocaleString()}
+                                {formatDateTime(activity.created_at)}
                               </span>
                             </div>
                             <p className="mt-1 text-muted-foreground">
