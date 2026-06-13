@@ -20,6 +20,15 @@ function inferQueueType(text: string) {
     : "Support";
 }
 
+function normalizeQueueType(category: unknown, messageText: unknown) {
+  const value = String(category || "").trim();
+
+  if (["Support", "Game Day Ops", "Billing", "General"].includes(value)) {
+    return value;
+  }
+
+  return inferQueueType(String(messageText || ""));
+}
 
 export const Route = createFileRoute("/api/whatsapp-inbox")({
   server: {
@@ -58,6 +67,59 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
 
           if (error) return Response.json({ error: error.message }, { status: 500 });
           return Response.json({ ok: true });
+        }
+
+        if (body?.mode === "create_support_ticket") {
+          const msg = body?.message;
+          if (!msg?.id) {
+            return Response.json({ error: "Missing WhatsApp message" }, { status: 400 });
+          }
+
+          const queueType = normalizeQueueType(msg.category, msg.message_text);
+          const title = String(msg.message_text || "WhatsApp support request").slice(0, 120);
+          const description = [
+            String(msg.message_text || ""),
+            "",
+            `WhatsApp sender: ${msg.sender_name || "Unknown"}`,
+            `WhatsApp number: ${msg.from_number || "Unknown"}`,
+            `WhatsApp origin detected - ${msg.id}`,
+          ].join("\n");
+
+          const { error: ticketError } = await supabaseAdmin
+            .from("support_tickets")
+            .insert({
+              signup_id: null,
+              lead_id: null,
+              category: "Communication",
+              severity: queueType === "Game Day Ops" ? "HIGH" : "MEDIUM",
+              title,
+              description,
+              sla_hours: queueType === "Game Day Ops" ? 1 : 24,
+              assigned_to_name: "Unassigned",
+              handled_by_name: "Unassigned",
+              last_updated_by_name: "System",
+              queue_type: queueType,
+            });
+
+          if (ticketError) {
+            console.error("[whatsapp support ticket insert]", ticketError);
+            return Response.json({ error: ticketError.message }, { status: 500 });
+          }
+
+          const { error: inboxError } = await supabaseAdmin
+            .from("whatsapp_inbox")
+            .update({
+              category: queueType,
+              status: "Assigned",
+            })
+            .eq("id", msg.id);
+
+          if (inboxError) {
+            console.error("[whatsapp inbox update]", inboxError);
+            return Response.json({ error: inboxError.message }, { status: 500 });
+          }
+
+          return Response.json({ ok: true, queue_type: queueType });
         }
 
         const id = body?.id;
