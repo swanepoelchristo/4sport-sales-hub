@@ -1,10 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
-import { EmptyState, StatusBadge } from "@/components/ui-bits";
+import { StatusBadge } from "@/components/ui-bits";
 import { commissionQualified, commissionAmount } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard });
+
+type DashboardSupportTicket = {
+  status?: string | null;
+  severity?: string | null;
+  rep_id?: string | null;
+  assigned_rep_id?: string | null;
+  created_at?: string | null;
+  opened_at?: string | null;
+  sla_hours?: number | string | null;
+};
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
@@ -24,7 +34,7 @@ function fmtDT(iso: string) {
   });
 }
 
-function displayFirstName(fullName: string) {
+function displayFirstName(fullName: string | null | undefined) {
   const clean = String(fullName || "").trim();
 
   if (!clean) return "Christo";
@@ -41,7 +51,7 @@ function Dashboard() {
   const isAdmin = user.role === "admin";
   const firstName = displayFirstName(user.full_name);
 
-  // Scope data by role — DO NOT CHANGE LOGIC
+  // Scope data by role — DO NOT CHANGE SYSTEM LOGIC
   const leads = useMemo(
     () => (isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === user.id)),
     [state.leads, isAdmin, user.id],
@@ -57,13 +67,21 @@ function Dashboard() {
     [state.signups, isAdmin, user.id],
   );
 
-  const supportTickets = useMemo(
-    () =>
-      isAdmin
-        ? (state.supportTickets ?? [])
-        : (state.supportTickets ?? []).filter((t) => t.rep_id === user.id),
-    [state.supportTickets, isAdmin, user.id],
-  );
+  // Visual dashboard support counters only.
+  // This is defensive so the dashboard does not break if supportTickets is not in the store.
+  const stateWithOptionalTickets = state as typeof state & {
+    supportTickets?: DashboardSupportTicket[];
+  };
+
+  const supportTickets = useMemo(() => {
+    const allTickets = stateWithOptionalTickets.supportTickets ?? [];
+
+    if (isAdmin) return allTickets;
+
+    return allTickets.filter(
+      (ticket) => ticket.rep_id === user.id || ticket.assigned_rep_id === user.id,
+    );
+  }, [stateWithOptionalTickets.supportTickets, isAdmin, user.id]);
 
   const repsActive = state.reps.filter((r) => r.active).length;
   const signedSchools = leads.filter((l) => ["Signed", "Paid", "Active"].includes(l.status)).length;
@@ -88,7 +106,6 @@ function Dashboard() {
     .sort((a, b) => +new Date(a.next_follow_up!) - +new Date(b.next_follow_up!))
     .slice(0, 6);
 
-  // === Notifications ===
   const followUpsDueToday = leads.filter((l) => {
     if (!l.next_follow_up) return false;
     const d = new Date(l.next_follow_up);
@@ -113,8 +130,15 @@ function Dashboard() {
 
   const overdueSlaTickets = supportTickets.filter((t) => {
     if (t.status === "Resolved") return false;
-    const created = new Date(t.created_at).getTime();
+
+    const startValue = t.opened_at || t.created_at;
+    if (!startValue) return false;
+
+    const created = new Date(startValue).getTime();
     const sla = Number(t.sla_hours || 0) * 60 * 60 * 1000;
+
+    if (!created || !sla) return false;
+
     return Date.now() > created + sla;
   }).length;
 
@@ -124,7 +148,7 @@ function Dashboard() {
   const totalCommission = signups.reduce((sum, s) => sum + commissionAmount(s), 0);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-2 pb-12">
+    <div className="relative left-1/2 w-[min(1280px,calc(100vw-2rem))] -translate-x-1/2 space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -160,6 +184,7 @@ function Dashboard() {
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-100 bg-cyan-50 text-xl">
               💡
             </div>
+
             <div>
               <h2 className="text-base font-bold text-slate-950">How to use this page</h2>
               <p className="text-sm text-slate-600">
@@ -177,7 +202,9 @@ function Dashboard() {
           <InfoBox
             icon="📋"
             title="What this page is for"
-            text={`A quick snapshot of ${isAdmin ? "the whole team's" : "your"} pipeline — notifications, KPIs, upcoming meetings and follow-ups.`}
+            text={`A quick snapshot of ${
+              isAdmin ? "the whole team's" : "your"
+            } pipeline — notifications, KPIs, upcoming meetings and follow-ups.`}
           />
 
           <InfoBox
@@ -223,6 +250,7 @@ function Dashboard() {
         />
 
         <DashboardKpi icon="📌" label="Follow-ups due" value={followUps.length} tone="warning" />
+
         {isAdmin && <DashboardKpi icon="🧑‍💼" label="Active reps" value={repsActive} tone="accent" />}
       </div>
 
@@ -231,10 +259,14 @@ function Dashboard() {
         <WorkPanel
           title="Upcoming Meetings"
           icon="🗓️"
-          action={<Link to="/meetings" className="text-xs font-bold uppercase tracking-wider text-cyan-600">View all</Link>}
+          action={
+            <Link to="/meetings" className="text-xs font-bold uppercase tracking-wider text-cyan-600">
+              View all
+            </Link>
+          }
         >
           {upcoming.length === 0 ? (
-            <EmptyState>No upcoming meetings scheduled.</EmptyState>
+            <EmptyPanel icon="🗓️" title="No upcoming meetings scheduled." subtitle="Great job. You are all clear." />
           ) : (
             <ul className="space-y-3">
               {upcoming.map((m) => {
@@ -270,10 +302,14 @@ function Dashboard() {
         <WorkPanel
           title="Follow-ups Due"
           icon="✉️"
-          action={<Link to="/leads" className="text-xs font-bold uppercase tracking-wider text-cyan-600">View leads</Link>}
+          action={
+            <Link to="/leads" className="text-xs font-bold uppercase tracking-wider text-cyan-600">
+              View leads
+            </Link>
+          }
         >
           {followUps.length === 0 ? (
-            <EmptyState>No follow-ups scheduled.</EmptyState>
+            <EmptyPanel icon="✉️" title="No follow-ups scheduled." subtitle="You are all caught up." />
           ) : (
             <ul className="space-y-3">
               {followUps.map((l) => {
@@ -413,8 +449,8 @@ function WorkPanel({
 }: {
   title: string;
   icon: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl shadow-cyan-950/25">
@@ -432,6 +468,26 @@ function WorkPanel({
 
       {children}
     </section>
+  );
+}
+
+function EmptyPanel({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex min-h-[160px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+        {icon}
+      </div>
+      <p className="font-semibold text-slate-950">{title}</p>
+      <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+    </div>
   );
 }
 
