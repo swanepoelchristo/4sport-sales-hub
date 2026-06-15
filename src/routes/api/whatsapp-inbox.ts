@@ -85,7 +85,41 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
             `WhatsApp origin detected - ${msg.id}`,
           ].join("\n");
 
-          const { error: ticketError } = await supabaseAdmin
+          const { data: existingMessage, error: existingMessageError } = await supabaseAdmin
+            .from("whatsapp_inbox")
+            .select("linked_support_ticket_id")
+            .eq("id", msg.id)
+            .maybeSingle();
+
+          if (existingMessageError) {
+            console.error("[whatsapp inbox existing check]", existingMessageError);
+            return Response.json({ error: existingMessageError.message }, { status: 500 });
+          }
+
+          if (existingMessage?.linked_support_ticket_id) {
+            return Response.json({
+              ok: true,
+              reused: true,
+              ticket_id: existingMessage.linked_support_ticket_id,
+              queue_type: queueType,
+            });
+          }
+
+          const year = new Date().getFullYear();
+          const { count, error: countError } = await supabaseAdmin
+            .from("support_tickets")
+            .select("id", { count: "exact", head: true })
+            .gte("created_at", `${year}-01-01T00:00:00.000Z`)
+            .lt("created_at", `${year + 1}-01-01T00:00:00.000Z`);
+
+          if (countError) {
+            console.error("[support ticket count]", countError);
+            return Response.json({ error: countError.message }, { status: 500 });
+          }
+
+          const ticketNumber = `4S-${year}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+
+          const { data: ticket, error: ticketError } = await supabaseAdmin
             .from("support_tickets")
             .insert({
               signup_id: null,
@@ -99,7 +133,10 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
               handled_by_name: "Unassigned",
               last_updated_by_name: "System",
               queue_type: queueType,
-            });
+              ticket_number: ticketNumber,
+            })
+            .select("id, ticket_number")
+            .single();
 
           if (ticketError) {
             console.error("[whatsapp support ticket insert]", ticketError);
@@ -111,6 +148,8 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
             .update({
               category: queueType,
               status: "Assigned",
+              linked_support_ticket_id: ticket.id,
+              outbound_confirmation_status: "pending",
             })
             .eq("id", msg.id);
 
@@ -119,7 +158,22 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
             return Response.json({ error: inboxError.message }, { status: 500 });
           }
 
-          return Response.json({ ok: true, queue_type: queueType });
+          await supabaseAdmin.from("support_ticket_activity").insert({
+            ticket_id: ticket.id,
+            action_type: "created_from_whatsapp",
+            field_name: "whatsapp_message_id",
+            old_value: null,
+            new_value: msg.id,
+            actor_name: "System",
+          });
+
+          return Response.json({
+            ok: true,
+            ticket_id: ticket.id,
+            ticket_number: ticket.ticket_number,
+            queue_type: queueType,
+            outbound_confirmation_status: "pending",
+          });
         }
 
         const id = body?.id;
