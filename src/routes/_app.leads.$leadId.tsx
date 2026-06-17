@@ -1,13 +1,37 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
-import { StatusBadge } from "@/components/ui-bits";
-import { LEAD_STATUSES, PROVINCES, SPORTS } from "@/lib/types";
-import { Plus, Download, Search, Filter, Building2, MapPin, Phone, Pencil } from "lucide-react";
-import { exportRowsAsCsv } from "@/lib/csv";
-import { audit } from "@/lib/audit";
+import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
+import {
+  CALL_OUTCOMES,
+  type CallOutcome,
+  type Lead,
+  type LeadActivity,
+  type LeadStatus,
+} from "@/lib/types";
+import {
+  CalendarClock,
+  CheckCircle2,
+  ClipboardList,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldAlert,
+  UserCheck,
+} from "lucide-react";
 
-export const Route = createFileRoute("/_app/leads/$leadId")({ component: LeadsPage });
+export const Route = createFileRoute("/_app/leads/$leadId")({ component: LeadWorkspacePage });
+
+const outcomeToStatus: Record<CallOutcome, LeadStatus> = {
+  no_answer: "Contacted",
+  interested: "Interested",
+  not_interested: "Not Interested",
+  call_back_later: "Contacted",
+  meeting_booked: "Meeting Scheduled",
+  converted: "Signed",
+  do_not_contact: "Not Interested",
+};
 
 const statusTone = (s: string) => {
   if (["Signed", "Paid", "Active"].includes(s)) return "success" as const;
@@ -16,377 +40,378 @@ const statusTone = (s: string) => {
   return "neutral" as const;
 };
 
-function LeadsPage() {
-  const { state, user } = useStore();
+function LeadWorkspacePage() {
+  const { leadId } = useParams({ from: "/_app/leads/$leadId" });
+  const { state, user, setState } = useStore();
+
+  const lead = useMemo(() => state.leads.find((item) => item.id === leadId), [state.leads, leadId]);
+  const activities = useMemo(
+    () => state.leadActivity
+      .filter((activity) => activity.lead_id === leadId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [state.leadActivity, leadId],
+  );
+
+  const [notes, setNotes] = useState("");
+  const [nextFollowUp, setNextFollowUp] = useState("");
+  const [selectedRepId, setSelectedRepId] = useState(lead?.assigned_rep_id ?? "");
+  const [busyOutcome, setBusyOutcome] = useState<CallOutcome | null>(null);
+  const [savingRep, setSavingRep] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (!user) return null;
 
   const isAdmin = user.role === "admin";
+  const isCallCentreAgent = user.role === "call_center_agent";
+  const agentProfile = state.callCenterAgents.find((agent) => agent.id === user.id);
+  const activeAgent = isCallCentreAgent && user.call_center_status === "active";
 
-  const [rep, setRep] = useState("all");
-  const [province, setProvince] = useState("all");
-  const [sport, setSport] = useState("all");
-  const [status, setStatus] = useState("all");
-  const [q, setQ] = useState("");
+  if (!lead) {
+    return (
+      <>
+        <PageHeader
+          title="Lead not found"
+          subtitle="This lead may have been archived or you may not have access."
+          action={<Link to="/leads" className="text-sm text-muted-foreground hover:text-foreground">← Back to leads</Link>}
+        />
+        <EmptyState>Lead not found.</EmptyState>
+      </>
+    );
+  }
 
-  const leads = useMemo(() => {
-    let list = isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === user.id);
+  const assignedRep = state.reps.find((rep) => rep.id === lead.assigned_rep_id);
+  const assignedAgent = state.callCenterAgents.find((agent) => agent.id === lead.assigned_agent_id);
+  const canWorkLead = isAdmin || activeAgent || (!isCallCentreAgent && lead.assigned_rep_id === user.id);
+  const canClaimLead = activeAgent && !lead.assigned_agent_id;
+  const canAssignRep = isAdmin || activeAgent;
+  const publicPhone = lead.public_phone || lead.phone || "";
+  const publicEmail = lead.public_email || lead.email || "";
+  const source = lead.source_url || lead.source_note || lead.lead_source || "";
 
-    if (isAdmin && rep !== "all") list = list.filter((l) => l.assigned_rep_id === rep);
-    if (province !== "all") list = list.filter((l) => l.province === province);
-    if (sport !== "all") list = list.filter((l) => l.sport_focus === sport);
-    if (status !== "all") list = list.filter((l) => l.status === status);
+  const updateLocalLead = (patch: Partial<Lead>) => {
+    setState((current) => ({
+      ...current,
+      leads: current.leads.map((item) => item.id === lead.id ? { ...item, ...patch } : item),
+    }));
+  };
 
-    if (q.trim()) {
-      const t = q.toLowerCase();
-      list = list.filter(
-        (l) =>
-          l.org_name.toLowerCase().includes(t) ||
-          l.city.toLowerCase().includes(t) ||
-          l.contact_person.toLowerCase().includes(t),
-      );
+  const claimLead = async () => {
+    if (!canClaimLead) return;
+    setClaiming(true);
+    setError(null);
+
+    updateLocalLead({ assigned_agent_id: user.id });
+
+    const { error: updateError } = await (supabase as any)
+      .from("leads")
+      .update({ assigned_agent_id: user.id })
+      .eq("id", lead.id);
+
+    setClaiming(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      updateLocalLead({ assigned_agent_id: "" });
+    }
+  };
+
+  const saveRep = async () => {
+    if (!canAssignRep) return;
+    setSavingRep(true);
+    setError(null);
+
+    updateLocalLead({ assigned_rep_id: selectedRepId });
+
+    const { error: updateError } = await (supabase as any)
+      .from("leads")
+      .update({ assigned_rep_id: selectedRepId || null })
+      .eq("id", lead.id);
+
+    setSavingRep(false);
+
+    if (updateError) {
+      setError(updateError.message);
+    }
+  };
+
+  const recordOutcome = async (outcome: CallOutcome) => {
+    if (!canWorkLead) return;
+    setBusyOutcome(outcome);
+    setError(null);
+
+    const now = new Date().toISOString();
+    const nextFollowUpIso = nextFollowUp ? new Date(nextFollowUp).toISOString() : null;
+    const summaryNote = notes.trim();
+
+    const row = {
+      lead_id: lead.id,
+      agent_id: isCallCentreAgent ? user.id : null,
+      activity_type: "call",
+      outcome,
+      notes: summaryNote,
+      next_follow_up_at: nextFollowUpIso,
+    };
+
+    const { data, error: insertError } = await (supabase as any)
+      .from("lead_activity")
+      .insert(row)
+      .select()
+      .single();
+
+    if (insertError) {
+      setBusyOutcome(null);
+      setError(insertError.message);
+      return;
     }
 
-    return list;
-  }, [state.leads, isAdmin, user.id, rep, province, sport, status, q]);
+    const newActivity: LeadActivity = {
+      id: data.id,
+      lead_id: data.lead_id,
+      agent_id: data.agent_id ?? null,
+      activity_type: data.activity_type,
+      outcome: data.outcome ?? "",
+      notes: data.notes ?? "",
+      next_follow_up_at: data.next_follow_up_at ?? null,
+      created_at: data.created_at ?? now,
+    };
 
-  const repById = (id: string) => state.reps.find((r) => r.id === id);
+    const nextStatus = outcomeToStatus[outcome];
+    const patch: Partial<Lead> = {
+      status: nextStatus,
+      last_call_outcome: outcome,
+      last_call_note: summaryNote,
+      last_contacted_at: now,
+      next_follow_up: nextFollowUpIso ?? lead.next_follow_up,
+      do_not_contact: outcome === "do_not_contact" ? true : lead.do_not_contact,
+      assigned_agent_id: lead.assigned_agent_id || (isCallCentreAgent ? user.id : ""),
+    };
+
+    setState((current) => ({
+      ...current,
+      leads: current.leads.map((item) => item.id === lead.id ? { ...item, ...patch } : item),
+      leadActivity: [newActivity, ...current.leadActivity],
+    }));
+
+    setNotes("");
+    setNextFollowUp("");
+    setBusyOutcome(null);
+  };
 
   return (
-    <div className="relative left-1/2 w-[min(1280px,calc(100vw-2rem))] -translate-x-1/2 space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-cyan-300/80">
-            4SPORT Sales Hub
-          </p>
+    <>
+      <PageHeader
+        title={lead.org_name}
+        subtitle={`${lead.org_type} • ${lead.city || "City unknown"}, ${lead.province || "Province unknown"} • ${lead.sport_focus}`}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/leads" className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold">
+              ← Back to leads
+            </Link>
+            {canClaimLead && (
+              <button
+                type="button"
+                onClick={claimLead}
+                disabled={claiming}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                <UserCheck className="h-4 w-4" />
+                {claiming ? "Claiming…" : "Claim this lead"}
+              </button>
+            )}
+          </div>
+        }
+      />
 
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
-            Leads
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-300">
-            {isAdmin ? "All schools, clubs and academies in the sales pipeline." : "Leads assigned to you."}
-          </p>
+      {error && (
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          {error}
         </div>
+      )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          {isAdmin && (
-            <button
-              onClick={() => {
-                exportRowsAsCsv(`leads-${new Date().toISOString().slice(0, 10)}.csv`, leads);
-                void audit("export.csv", `leads (${leads.length})`);
-              }}
-              className="inline-flex items-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-100 shadow-lg shadow-cyan-950/30 transition hover:border-cyan-300 hover:bg-cyan-400/15"
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </button>
-          )}
-
-          <Link
-            to="/leads/new"
-            className="inline-flex items-center gap-2 rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:bg-cyan-300"
-          >
-            <Plus className="h-4 w-4" />
-            New lead
-          </Link>
+      {isCallCentreAgent && user.call_center_status !== "active" && (
+        <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
+          Your call centre profile is <strong>{user.call_center_status ?? "pending"}</strong>. You can view this page, but lead calling is locked until admin approval.
         </div>
-      </div>
+      )}
 
-      {/* Guide */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-cyan-950/30">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-100 bg-cyan-50 text-xl">
-              💡
-            </div>
-
-            <div>
-              <h2 className="text-base font-bold text-slate-950">How to use this page</h2>
-              <p className="text-sm text-slate-600">
-                Manage schools, clubs and academies in your pipeline.
+      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="space-y-4">
+          <Section title="Call script">
+            <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+              <p>
+                “Good day, I’m calling from 4SPORT. We help schools, clubs and academies manage sports operations,
+                signups, events, communication and support in one controlled dashboard.”
+              </p>
+              <p>
+                “I only have your public organisation contact details from the source listed on this lead.
+                Is this the correct admin office/contact for sports operations?”
+              </p>
+              <p>
+                “Would it be useful if a 4SPORT rep booked a short meeting to show how this could help your organisation?”
               </p>
             </div>
-          </div>
+          </Section>
 
-          <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600">
-            Leads guide
-          </span>
-        </div>
+          <Section title="Record call outcome">
+            <div className="grid gap-4">
+              <label>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Call notes</span>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Log what happened on the call. Keep it factual. No child/athlete personal details."
+                  className="mt-1 min-h-28 w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </label>
 
-        <div className="grid gap-4 p-5 md:grid-cols-3">
-          <InfoBox
-            icon="🔎"
-            title="Find the right lead"
-            text="Use search and filters to quickly find a school, club, city, contact or lead status."
-          />
+              <label>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Next follow-up</span>
+                <input
+                  type="datetime-local"
+                  value={nextFollowUp}
+                  onChange={(e) => setNextFollowUp(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </label>
 
-          <InfoBox
-            icon="➕"
-            title="Add new opportunities"
-            text="Click New lead to add a school, club or academy into the sales pipeline."
-          />
-
-          <InfoBox
-            icon="📌"
-            title="Keep follow-ups clean"
-            text="Open a lead and set the next follow-up date so nothing falls through."
-          />
-        </div>
-      </div>
-
-      {/* Filters */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl shadow-cyan-950/25">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600">
-            <Filter className="h-5 w-5" />
-          </div>
-
-          <div>
-            <h2 className="font-display text-lg font-semibold text-slate-950">Filters</h2>
-            <p className="text-sm text-slate-600">Narrow the lead list without changing any data.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <label className="relative md:col-span-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              placeholder="Search name, city, contact"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-10 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
-            />
-          </label>
-
-          {isAdmin && (
-            <select
-              value={rep}
-              onChange={(e) => setRep(e.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
-            >
-              <option value="all">All reps</option>
-              {state.reps.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.full_name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <select
-            value={province}
-            onChange={(e) => setProvince(e.target.value)}
-            className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
-          >
-            <option value="all">All provinces</option>
-            {PROVINCES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={sport}
-            onChange={(e) => setSport(e.target.value)}
-            className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
-          >
-            <option value="all">All sports</option>
-            {SPORTS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
-          >
-            <option value="all">All statuses</option>
-            {LEAD_STATUSES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
-      </section>
-
-      {/* Leads table / cards */}
-      {leads.length === 0 ? (
-        <EmptyPanel icon="🧲" title="No leads match these filters." subtitle="Try changing the search or filters." />
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-cyan-950/25 md:block">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600">
-                  <Building2 className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <h2 className="font-display text-lg font-semibold text-slate-950">Lead pipeline</h2>
-                  <p className="text-sm text-slate-600">
-                    Showing {leads.length} lead{leads.length === 1 ? "" : "s"}.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <table className="w-full text-sm text-slate-800">
-              <thead className="bg-white text-xs uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="px-5 py-3 text-left">Organisation</th>
-                  <th className="px-5 py-3 text-left">Type</th>
-                  <th className="px-5 py-3 text-left">Location</th>
-                  <th className="px-5 py-3 text-left">Sport</th>
-                  <th className="px-5 py-3 text-left">Contact</th>
-                  {isAdmin && <th className="px-5 py-3 text-left">Rep</th>}
-                  <th className="px-5 py-3 text-left">Status</th>
-                  <th className="px-5 py-3 text-left">Follow-up</th>
-                  <th className="px-5 py-3 text-right">Edit</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {leads.map((l) => (
-                  <tr key={l.id} className="border-t border-slate-200 transition hover:bg-cyan-50/40">
-                    <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-950">{l.org_name}</div>
-                    </td>
-
-                    <td className="px-5 py-4">{l.org_type}</td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-cyan-500" />
-                        <span>
-                          {l.city}, {l.province}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">{l.sport_focus}</td>
-
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-slate-950">{l.contact_person}</div>
-                      <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                        <Phone className="h-3 w-3" />
-                        {l.phone}
-                      </div>
-                    </td>
-
-                    {isAdmin && (
-                      <td className="px-5 py-4">
-                        {repById(l.assigned_rep_id)?.full_name ?? "—"}
-                      </td>
-                    )}
-
-                    <td className="px-5 py-4">
-                      <StatusBadge tone={statusTone(l.status)}>{l.status}</StatusBadge>
-                    </td>
-
-                    <td className="px-5 py-4 text-xs font-medium text-slate-600">
-                      {l.next_follow_up ? new Date(l.next_follow_up).toLocaleDateString("en-ZA") : "—"}
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <Link
-                        to="/leads/$leadId"
-                        params={{ leadId: l.id }}
-                        className="inline-flex items-center gap-1 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-bold uppercase text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        Edit
-                      </Link>
-                    </td>
-                  </tr>
+              <div className="flex flex-wrap gap-2">
+                {CALL_OUTCOMES.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => recordOutcome(item.value)}
+                    disabled={!canWorkLead || !!busyOutcome || lead.do_not_contact}
+                    className="rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-semibold hover:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busyOutcome === item.value ? "Saving…" : item.label}
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
 
-          {/* Mobile cards */}
-          <ul className="space-y-3 md:hidden">
-            {leads.map((l) => (
-              <li key={l.id}>
-                <Link
-                  to="/leads/$leadId"
-                  params={{ leadId: l.id }}
-                  className="block rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-cyan-950/20"
+              {lead.do_not_contact && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  This lead is marked do-not-contact. Do not call again unless admin explicitly clears it.
+                </div>
+              )}
+            </div>
+          </Section>
+
+          <Section title="Activity history">
+            {activities.length === 0 ? (
+              <EmptyState>No call notes or activity logged yet.</EmptyState>
+            ) : (
+              <div className="space-y-3">
+                {activities.map((activity) => (
+                  <ActivityCard key={activity.id} activity={activity} />
+                ))}
+              </div>
+            )}
+          </Section>
+        </div>
+
+        <div className="space-y-4">
+          <Section title="Lead status">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={statusTone(lead.status)}>{lead.status}</StatusBadge>
+                {lead.do_not_contact && <StatusBadge tone="danger">Do not contact</StatusBadge>}
+              </div>
+
+              <Info icon={<CalendarClock className="h-4 w-4" />} label="Next follow-up" value={lead.next_follow_up ? new Date(lead.next_follow_up).toLocaleString("en-ZA") : "Not set"} />
+              <Info icon={<CheckCircle2 className="h-4 w-4" />} label="Last outcome" value={lead.last_call_outcome || "No outcome yet"} />
+              <Info icon={<ClipboardList className="h-4 w-4" />} label="Last note" value={lead.last_call_note || lead.notes || "No notes yet"} />
+            </div>
+          </Section>
+
+          <Section title="Public organisation info">
+            <div className="space-y-3">
+              <Info icon={<MapPin className="h-4 w-4" />} label="Location" value={`${lead.city || "City unknown"}, ${lead.province || "Province unknown"}`} />
+              <Info icon={<Phone className="h-4 w-4" />} label="Public phone" value={publicPhone || "—"} />
+              <Info icon={<Mail className="h-4 w-4" />} label="Public email" value={publicEmail || "—"} />
+              <Info icon={<ShieldAlert className="h-4 w-4" />} label="Source" value={source || "Source not captured"} />
+              <Info icon={<ShieldAlert className="h-4 w-4" />} label="Website" value={lead.website || "—"} />
+            </div>
+          </Section>
+
+          <Section title="Assignments">
+            <div className="space-y-4">
+              <Info icon={<UserCheck className="h-4 w-4" />} label="Assigned agent" value={assignedAgent?.name || assignedAgent?.email || agentProfile?.name || "Unassigned"} />
+              <Info icon={<UserCheck className="h-4 w-4" />} label="Assigned rep" value={assignedRep?.full_name || "Unassigned"} />
+
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Assign to 4SPORT rep</span>
+                <select
+                  value={selectedRepId}
+                  onChange={(e) => setSelectedRepId(e.target.value)}
+                  disabled={!canAssignRep}
+                  className="mt-1 w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm focus:border-primary focus:outline-none disabled:opacity-60"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-950">{l.org_name}</p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        {l.city}, {l.province} • {l.sport_focus}
-                      </p>
-                    </div>
+                  <option value="">Unassigned</option>
+                  {state.reps.map((rep) => (
+                    <option key={rep.id} value={rep.id}>{rep.full_name}</option>
+                  ))}
+                </select>
+              </label>
 
-                    <StatusBadge tone={statusTone(l.status)}>{l.status}</StatusBadge>
-                  </div>
+              <button
+                type="button"
+                onClick={saveRep}
+                disabled={!canAssignRep || savingRep}
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {savingRep ? "Saving…" : "Save rep assignment"}
+              </button>
+            </div>
+          </Section>
 
-                  <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-600">
-                    <div className="font-semibold text-slate-900">{l.contact_person}</div>
-                    <div className="mt-1">{l.phone}</div>
-                    {l.next_follow_up && (
-                      <div className="mt-2 font-medium">
-                        Follow-up {new Date(l.next_follow_up).toLocaleDateString("en-ZA")}
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
+          <Section title="Meeting + commission">
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p><strong className="text-foreground">Meeting booking:</strong> foundation placeholder in PR #6. Full booking workflow comes next.</p>
+              <p><strong className="text-foreground">Commission:</strong> meeting scheduled and new customer events come after the workflow foundation is stable.</p>
+            </div>
+          </Section>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Info({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-secondary p-3">
+      <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <p className="break-words text-sm">{value}</p>
+    </div>
+  );
+}
+
+function ActivityCard({ activity }: { activity: LeadActivity }) {
+  const outcomeLabel = CALL_OUTCOMES.find((item) => item.value === activity.outcome)?.label || activity.outcome || "No outcome";
+
+  return (
+    <div className="rounded-lg border border-border bg-secondary p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold">{outcomeLabel}</p>
+        <p className="text-xs text-muted-foreground">{new Date(activity.created_at).toLocaleString("en-ZA")}</p>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">{activity.notes || "No note captured."}</p>
+      {activity.next_follow_up_at && (
+        <p className="mt-2 text-xs font-semibold text-primary">
+          Follow-up: {new Date(activity.next_follow_up_at).toLocaleString("en-ZA")}
+        </p>
       )}
-    </div>
-  );
-}
-
-function InfoBox({
-  icon,
-  title,
-  text,
-}: {
-  icon: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-xl">
-        {icon}
-      </div>
-
-      <p className="font-semibold text-slate-950">{title}</p>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">{text}</p>
-    </div>
-  );
-}
-
-function EmptyPanel({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: string;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-2xl shadow-cyan-950/25">
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-50 text-2xl">
-        {icon}
-      </div>
-
-      <p className="font-semibold text-slate-950">{title}</p>
-      <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
     </div>
   );
 }

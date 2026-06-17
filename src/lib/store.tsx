@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { pushAuthEvent } from "./auth-debug";
 import type {
   Rep, Lead, Meeting, Signup, ActivityLog, Profile, Role,
+  CallCenterAgent, LeadActivity,
 } from "./types";
 
 interface State {
@@ -13,9 +14,19 @@ interface State {
   meetings: Meeting[];
   signups: Signup[];
   activity: ActivityLog[];
+  callCenterAgents: CallCenterAgent[];
+  leadActivity: LeadActivity[];
 }
 
-const emptyState: State = { reps: [], leads: [], meetings: [], signups: [], activity: [] };
+const emptyState: State = {
+  reps: [],
+  leads: [],
+  meetings: [],
+  signups: [],
+  activity: [],
+  callCenterAgents: [],
+  leadActivity: [],
+};
 
 interface Ctx {
   state: State;
@@ -65,6 +76,18 @@ const leadFromRow = (r: any): Lead => ({
   phone: r.phone ?? "",
   email: r.email ?? "",
   lead_source: r.lead_source ?? "",
+
+  website: r.website ?? "",
+  public_phone: r.public_phone ?? r.phone ?? "",
+  public_email: r.public_email ?? r.email ?? "",
+  source_url: r.source_url ?? "",
+  source_note: r.source_note ?? r.lead_source ?? "",
+  assigned_agent_id: r.assigned_agent_id ?? "",
+  do_not_contact: !!r.do_not_contact,
+  last_call_outcome: r.last_call_outcome ?? "",
+  last_call_note: r.last_call_note ?? "",
+  last_contacted_at: r.last_contacted_at ?? null,
+
   assigned_rep_id: r.assigned_rep_id ?? "",
   status: r.status,
   notes: r.notes ?? "",
@@ -136,6 +159,27 @@ const activityFromRow = (r: any): ActivityLog => ({
   detail: r.detail ?? "",
 });
 
+const callCenterAgentFromRow = (r: any): CallCenterAgent => ({
+  id: r.id,
+  auth_user_id: r.auth_user_id ?? null,
+  name: r.name ?? "",
+  email: r.email ?? "",
+  phone: r.phone ?? "",
+  status: r.status ?? "pending",
+  created_at: r.created_at,
+});
+
+const leadActivityFromRow = (r: any): LeadActivity => ({
+  id: r.id,
+  lead_id: r.lead_id,
+  agent_id: r.agent_id ?? null,
+  activity_type: r.activity_type,
+  outcome: r.outcome ?? "",
+  notes: r.notes ?? "",
+  next_follow_up_at: r.next_follow_up_at ?? null,
+  created_at: r.created_at,
+});
+
 // ---------- Diff to DB ----------
 function eq(a: any, b: any) { return JSON.stringify(a) === JSON.stringify(b); }
 
@@ -182,6 +226,13 @@ const leadToRow = (l: Lead) => ({
   city: l.city, region: l.region, sport_focus: l.sport_focus,
   contact_person: l.contact_person, contact_role: l.contact_role,
   phone: l.phone, email: l.email, lead_source: l.lead_source,
+  website: l.website, public_phone: l.public_phone, public_email: l.public_email,
+  source_url: l.source_url, source_note: l.source_note,
+  assigned_agent_id: l.assigned_agent_id || null,
+  do_not_contact: l.do_not_contact,
+  last_call_outcome: l.last_call_outcome,
+  last_call_note: l.last_call_note,
+  last_contacted_at: l.last_contacted_at,
   assigned_rep_id: l.assigned_rep_id || null,
   status: l.status, notes: l.notes, next_follow_up: l.next_follow_up,
 });
@@ -240,12 +291,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   stateRef.current = state;
 
   const loadAll = useCallback(async (profile: Profile) => {
-    const [reps, leads, meetings, signups, activity] = await Promise.all([
+    const [reps, leads, meetings, signups, activity, callCenterAgents, leadActivity] = await Promise.all([
       supabase.from("reps").select("*").eq("archived", false).order("full_name"),
       supabase.from("leads").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("meetings").select("*").eq("archived", false).order("meeting_at", { ascending: false }),
       supabase.from("signups").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(500),
+      (supabase as any).from("call_center_agents").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("lead_activity").select("*").order("created_at", { ascending: false }).limit(1000),
     ]);
     setStateInner({
       reps: (reps.data ?? []).map(repFromRow),
@@ -253,6 +306,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       meetings: (meetings.data ?? []).map(meetingFromRow),
       signups: (signups.data ?? []).map(signupFromRow),
       activity: (activity.data ?? []).map(activityFromRow),
+      callCenterAgents: (callCenterAgents.data ?? []).map(callCenterAgentFromRow),
+      leadActivity: (leadActivity.data ?? []).map(leadActivityFromRow),
     });
     if (!profile.id) {
       const mine = (reps.data ?? []).find((r: any) => r.user_id === profile.auth_id);
@@ -305,15 +360,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
     const { data: repRows } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).limit(1);
+    const { data: agentRows } = await (supabase as any)
+      .from("call_center_agents").select("id,status").eq("auth_user_id", authUser.id).limit(1);
+
     const rep = repRows?.[0] ?? null;
+    const agent = agentRows?.[0] ?? null;
     const roleList = roles ?? [];
-    const role = roleList.some((r: any) => r.role === "admin") ? "admin" : "sales_rep";
+    const profileRole = profile.role as Role;
+    const role: Role = roleList.some((r: any) => r.role === "admin")
+      ? "admin"
+      : profileRole === "call_center_agent"
+        ? "call_center_agent"
+        : "sales_rep";
+
     return {
-      id: rep?.id ?? "",
+      id: role === "call_center_agent" ? agent?.id ?? "" : rep?.id ?? "",
       auth_id: authUser.id,
       full_name: profile.full_name || profile.email,
       email: profile.email,
       role,
+      call_center_status: agent?.status,
     };
   }, []);
 

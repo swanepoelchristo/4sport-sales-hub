@@ -1,14 +1,16 @@
 // Domain types aligned to Supabase tables:
 // profiles, reps, leads, meetings, signups, commissions, activity_logs
+// PR #6 adds call_center_agents + lead_activity foundation.
 
-export type Role = "admin" | "sales_rep";
+export type Role = "admin" | "sales_rep" | "call_center_agent";
 
 export interface Profile {
-  id: string;       // linked rep.id when available; otherwise '' for unlinked admin
+  id: string;       // linked rep.id or call_center_agent.id when available; otherwise '' for unlinked admin
   auth_id: string;  // auth.users.id
   full_name: string;
   email: string;
   role: Role;
+  call_center_status?: CallCenterAgentStatus;
 }
 
 export interface Rep {
@@ -29,6 +31,18 @@ export interface Rep {
   user_id?: string | null;
 }
 
+export type CallCenterAgentStatus = "pending" | "active" | "suspended";
+
+export interface CallCenterAgent {
+  id: string;
+  auth_user_id: string | null;
+  name: string;
+  email: string;
+  phone: string;
+  status: CallCenterAgentStatus;
+  created_at: string;
+}
+
 export type LeadStatus =
   | "New Lead"
   | "Contacted"
@@ -40,6 +54,33 @@ export type LeadStatus =
   | "Paid"
   | "Active"
   | "Lost";
+
+export type CallOutcome =
+  | "no_answer"
+  | "interested"
+  | "not_interested"
+  | "call_back_later"
+  | "meeting_booked"
+  | "converted"
+  | "do_not_contact";
+
+export type LeadActivityType =
+  | "call"
+  | "note"
+  | "email"
+  | "meeting"
+  | "status_change";
+
+export interface LeadActivity {
+  id: string;
+  lead_id: string;
+  agent_id: string | null;
+  activity_type: LeadActivityType;
+  outcome: CallOutcome | "";
+  notes: string;
+  next_follow_up_at: string | null;
+  created_at: string;
+}
 
 export type OrgType = "School" | "Club" | "Academy" | "Other";
 export type Sport =
@@ -54,11 +95,26 @@ export interface Lead {
   city: string;
   region: string;
   sport_focus: Sport;
+
+  // Existing sales pipeline fields.
   contact_person: string;
   contact_role: string;
   phone: string;
   email: string;
   lead_source: string;
+
+  // PR #6 call-centre-safe public information fields.
+  website: string;
+  public_phone: string;
+  public_email: string;
+  source_url: string;
+  source_note: string;
+  assigned_agent_id: string;
+  do_not_contact: boolean;
+  last_call_outcome: CallOutcome | "";
+  last_call_note: string;
+  last_contacted_at: string | null;
+
   assigned_rep_id: string;
   status: LeadStatus;
   notes: string;
@@ -155,6 +211,16 @@ export const SPORTS: Sport[] = [
 export const LEAD_STATUSES: LeadStatus[] = [
   "New Lead", "Contacted", "Meeting Scheduled", "Pitched",
   "Interested", "Not Interested", "Signed", "Paid", "Active", "Lost",
+];
+
+export const CALL_OUTCOMES: { value: CallOutcome; label: string }[] = [
+  { value: "no_answer", label: "No answer" },
+  { value: "interested", label: "Interested" },
+  { value: "not_interested", label: "Not interested" },
+  { value: "call_back_later", label: "Call back later" },
+  { value: "meeting_booked", label: "Meeting booked" },
+  { value: "converted", label: "Converted" },
+  { value: "do_not_contact", label: "Do not contact" },
 ];
 
 export const COMMISSION_AMOUNTS: Record<CommissionYear, number> = {
