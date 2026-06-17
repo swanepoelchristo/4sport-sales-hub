@@ -10,7 +10,20 @@ function blank(repId: string): Omit<Lead, "id" | "created_at"> {
   return {
     org_name: "", org_type: "School", province: "Gauteng", city: "", region: "",
     sport_focus: "Rugby", contact_person: "", contact_role: "", phone: "", email: "",
-    lead_source: "", assigned_rep_id: repId, status: "New Lead", notes: "", next_follow_up: null,
+    lead_source: "",
+
+    website: "",
+    public_phone: "",
+    public_email: "",
+    source_url: "",
+    source_note: "",
+    assigned_agent_id: "",
+    do_not_contact: false,
+    last_call_outcome: "",
+    last_call_note: "",
+    last_contacted_at: null,
+
+    assigned_rep_id: repId, status: "New Lead", notes: "", next_follow_up: null,
   };
 }
 
@@ -90,6 +103,17 @@ export function LeadForm({
         <Field label="Phone"><input className={inp} type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
         <Field label="Email"><input className={inp} type="email" value={form.email} onChange={(e) => set("email", e.target.value)} /></Field>
         <Field label="Lead source"><input className={inp} value={form.lead_source} onChange={(e) => set("lead_source", e.target.value)} /></Field>
+        <Field label="Website"><input className={inp} value={form.website} onChange={(e) => set("website", e.target.value)} /></Field>
+        <Field label="Public phone"><input className={inp} type="tel" value={form.public_phone} onChange={(e) => set("public_phone", e.target.value)} /></Field>
+        <Field label="Public email"><input className={inp} type="email" value={form.public_email} onChange={(e) => set("public_email", e.target.value)} /></Field>
+        <Field label="Source URL"><input className={inp} value={form.source_url} onChange={(e) => set("source_url", e.target.value)} /></Field>
+        <Field label="Source note"><input className={inp} value={form.source_note} onChange={(e) => set("source_note", e.target.value)} /></Field>
+        <Field label="Do not contact">
+          <select className={inp} value={form.do_not_contact ? "yes" : "no"} onChange={(e) => set("do_not_contact", e.target.value === "yes")}>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </Field>
         <Field label="Assigned rep">
           <select className={inp} value={form.assigned_rep_id} onChange={(e) => set("assigned_rep_id", e.target.value)} disabled={!isAdmin}>
             {state.reps.map((r) => <option key={r.id} value={r.id}>{r.full_name}</option>)}

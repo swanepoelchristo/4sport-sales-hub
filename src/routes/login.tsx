@@ -137,8 +137,11 @@ function LoginPage() {
               <Link to="/bootstrap-admin" className="text-muted-foreground hover:text-primary hover:underline">First-time setup</Link>
             </div>
             <p className="mt-3 text-center text-xs text-muted-foreground">
-              Accounts are created by an administrator.{" "}
-              <Link to="/forgot-password" className="text-primary hover:underline">Reset password again</Link>
+              Sales rep accounts are created by an administrator.
+            </p>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Call centre agent?{" "}
+              <Link to="/call-centre-signup" className="text-primary hover:underline">Sign up with invite code</Link>
             </p>
           </form>
         </div>

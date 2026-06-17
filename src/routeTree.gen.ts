@@ -15,6 +15,7 @@ import { Route as RefundCancellationPolicyRouteImport } from './routes/refund-ca
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as CallCentreSignupRouteImport } from './routes/call-centre-signup'
 import { Route as BootstrapAdminRouteImport } from './routes/bootstrap-admin'
 import { Route as AuthDebugRouteImport } from './routes/auth-debug'
 import { Route as AppRouteImport } from './routes/_app'
@@ -63,6 +64,11 @@ const LoginRoute = LoginRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CallCentreSignupRoute = CallCentreSignupRouteImport.update({
+  id: '/call-centre-signup',
+  path: '/call-centre-signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BootstrapAdminRoute = BootstrapAdminRouteImport.update({
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth-debug': typeof AuthDebugRoute
   '/bootstrap-admin': typeof BootstrapAdminRoute
+  '/call-centre-signup': typeof CallCentreSignupRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth-debug': typeof AuthDebugRoute
   '/bootstrap-admin': typeof BootstrapAdminRoute
+  '/call-centre-signup': typeof CallCentreSignupRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -211,6 +219,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth-debug': typeof AuthDebugRoute
   '/bootstrap-admin': typeof BootstrapAdminRoute
+  '/call-centre-signup': typeof CallCentreSignupRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth-debug'
     | '/bootstrap-admin'
+    | '/call-centre-signup'
     | '/forgot-password'
     | '/login'
     | '/privacy-policy'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth-debug'
     | '/bootstrap-admin'
+    | '/call-centre-signup'
     | '/forgot-password'
     | '/login'
     | '/privacy-policy'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth-debug'
     | '/bootstrap-admin'
+    | '/call-centre-signup'
     | '/forgot-password'
     | '/login'
     | '/privacy-policy'
@@ -316,6 +328,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthDebugRoute: typeof AuthDebugRoute
   BootstrapAdminRoute: typeof BootstrapAdminRoute
+  CallCentreSignupRoute: typeof CallCentreSignupRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
@@ -368,6 +381,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/call-centre-signup': {
+      id: '/call-centre-signup'
+      path: '/call-centre-signup'
+      fullPath: '/call-centre-signup'
+      preLoaderRoute: typeof CallCentreSignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bootstrap-admin': {
@@ -546,6 +566,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthDebugRoute: AuthDebugRoute,
   BootstrapAdminRoute: BootstrapAdminRoute,
+  CallCentreSignupRoute: CallCentreSignupRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
