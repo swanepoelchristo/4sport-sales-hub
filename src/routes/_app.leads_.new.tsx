@@ -4,7 +4,7 @@ import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui-bits";
 import { LEAD_STATUSES, PROVINCES, SPORTS, type Lead, type LeadStatus, type OrgType, type Sport } from "@/lib/types";
 
-export const Route = createFileRoute("/_app/leads/new")({ component: NewLead });
+export const Route = createFileRoute("/_app/leads_/new")({ component: NewLead });
 
 function blank(repId: string): Omit<Lead, "id" | "created_at"> {
   return {

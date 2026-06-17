@@ -7,7 +7,7 @@ import { Plus, Download, Search, Filter, Building2, MapPin, Phone, Pencil } from
 import { exportRowsAsCsv } from "@/lib/csv";
 import { audit } from "@/lib/audit";
 
-export const Route = createFileRoute("/_app/leads")({ component: LeadsPage });
+export const Route = createFileRoute("/_app/leads/$leadId")({ component: LeadsPage });
 
 const statusTone = (s: string) => {
   if (["Signed", "Paid", "Active"].includes(s)) return "success" as const;
