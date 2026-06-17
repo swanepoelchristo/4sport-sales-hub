@@ -30,6 +30,58 @@ function normalizeQueueType(category: unknown, messageText: unknown) {
   return inferQueueType(String(messageText || ""));
 }
 
+async function sendWhatsAppConfirmation(toNumber: string, ticketNumber: string) {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || "1140507589146293";
+
+  if (!accessToken || !phoneNumberId) {
+    return {
+      status: "pending",
+      error: "Missing WHATSAPP_ACCESS_TOKEN or WHATSAPP_PHONE_NUMBER_ID",
+    };
+  }
+
+  const cleanNumber = String(toNumber || "").replace(/[^\d]/g, "");
+  if (!cleanNumber) {
+    return {
+      status: "failed",
+      error: "Missing recipient phone number",
+    };
+  }
+
+  const message = `Thank you for contacting 4SPORT. Your support ticket number is ${ticketNumber}. Our team will be with you shortly.`;
+
+  const res = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: cleanNumber,
+      type: "text",
+      text: {
+        preview_url: false,
+        body: message,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    return {
+      status: "failed",
+      error: errorText.slice(0, 500),
+    };
+  }
+
+  return {
+    status: "sent",
+    error: null,
+  };
+}
+
 export const Route = createFileRoute("/api/whatsapp-inbox")({
   server: {
     handlers: {
@@ -167,12 +219,36 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
             actor_name: "System",
           });
 
+          const confirmation = await sendWhatsAppConfirmation(
+            msg.from_number || "",
+            ticket.ticket_number
+          );
+
+          await supabaseAdmin
+            .from("whatsapp_inbox")
+            .update({
+              outbound_confirmation_status: confirmation.status,
+              outbound_confirmation_error: confirmation.error,
+              outbound_confirmation_sent_at: confirmation.status === "sent" ? new Date().toISOString() : null,
+            })
+            .eq("id", msg.id);
+
+          await supabaseAdmin.from("support_ticket_activity").insert({
+            ticket_id: ticket.id,
+            action_type: "whatsapp_confirmation",
+            field_name: "outbound_confirmation_status",
+            old_value: "pending",
+            new_value: confirmation.status,
+            actor_name: "System",
+          });
+
           return Response.json({
             ok: true,
             ticket_id: ticket.id,
             ticket_number: ticket.ticket_number,
             queue_type: queueType,
-            outbound_confirmation_status: "pending",
+            outbound_confirmation_status: confirmation.status,
+            outbound_confirmation_error: confirmation.error,
           });
         }
 

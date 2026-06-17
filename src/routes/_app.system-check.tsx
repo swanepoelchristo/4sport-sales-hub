@@ -1,383 +1,464 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
-import { useStore } from "@/lib/store";
-import { commissionAmount, commissionQualified, type Signup } from "@/lib/types";
-import { PageHeader, StatusBadge } from "@/components/ui-bits";
-import { HowToUse } from "@/components/HowToUse";
-import { Play, CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { listAccounts, inviteAccount, sendPasswordReset } from "@/lib/accounts.functions";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import {
+  MessageCircle,
+  Plus,
+  UserCheck,
+  CheckCircle2,
+  ExternalLink,
+  Inbox,
+  FlaskConical,
+  Phone,
+  Clock,
+  Tags,
+  Headset,
+} from "lucide-react";
 
-export const Route = createFileRoute("/_app/system-check")({ component: SystemCheckPage });
-
-type CheckStatus = "pending" | "running" | "pass" | "fail";
-type Check = {
+type InboxItem = {
   id: string;
-  label: string;
-  status: CheckStatus;
-  message: string;
-  at: string | null;
+  from_number: string;
+  sender_name: string;
+  message_text: string;
+  created_at: string;
+  category?: string;
+  status?: string;
+  linked_support_ticket_id?: string | null;
+  outbound_confirmation_status?: string | null;
 };
 
-const INITIAL: Check[] = [
-  { id: "connection", label: "1. Supabase connection works", status: "pending", message: "", at: null },
-  { id: "profile",    label: "2. Logged-in user profile loads", status: "pending", message: "", at: null },
-  { id: "role",       label: "3. Role is detected correctly", status: "pending", message: "", at: null },
-  { id: "admin-leads",label: "4. Admin can read all leads", status: "pending", message: "", at: null },
-  { id: "rep-scope",  label: "5. Sales rep can only read assigned leads (RLS shape)", status: "pending", message: "", at: null },
-  { id: "create-lead",label: "6. Create lead works", status: "pending", message: "", at: null },
-  { id: "edit-lead",  label: "7. Edit lead works", status: "pending", message: "", at: null },
-  { id: "create-meeting", label: "8. Create meeting works", status: "pending", message: "", at: null },
-  { id: "commission", label: "9. Signup commission calculation works", status: "pending", message: "", at: null },
-  { id: "activity",   label: "10. Activity log writes correctly", status: "pending", message: "", at: null },
-  { id: "rls",        label: "11. RLS blocks unauthorized access", status: "pending", message: "", at: null },
-  { id: "auth-link",  label: "12. auth.users → profiles → user_roles → reps linkage", status: "pending", message: "", at: null },
-  { id: "invite-fn",  label: "13. Admin can call invite server function", status: "pending", message: "", at: null },
-  { id: "reset-fn",   label: "14. Admin can call password-reset server function", status: "pending", message: "", at: null },
-  { id: "reset-route",label: "15. /reset-password route is reachable", status: "pending", message: "", at: null },
-];
+export const Route = createFileRoute("/_app/system-check")({
+  component: WhatsAppInboxPage,
+});
 
-function SystemCheckPage() {
-  const { user } = useStore();
-  const navigate = useNavigate();
-  const [checks, setChecks] = useState<Check[]>(INITIAL);
-  const [running, setRunning] = useState(false);
-  const callListAccounts = useServerFn(listAccounts);
-  const callInvite = useServerFn(inviteAccount);
-  const callReset = useServerFn(sendPasswordReset);
+function fmtDateTime(value: string) {
+  return new Date(value).toLocaleString("en-ZA", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
-  useEffect(() => {
-    if (user && user.role !== "admin") navigate({ to: "/dashboard", replace: true });
-  }, [user, navigate]);
+function WhatsAppInboxPage() {
+  const [messages, setMessages] = useState<InboxItem[]>([]);
+  const [testName, setTestName] = useState("Test Club Manager");
+  const [testNumber, setTestNumber] = useState("27821234567");
+  const [testMessage, setTestMessage] = useState("We need help on game day. No technical person is next to the field.");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  if (!user || user.role !== "admin") return null;
-
-  const update = (id: string, patch: Partial<Check>) =>
-    setChecks((c) => c.map((x) => (x.id === id ? { ...x, ...patch, at: new Date().toISOString() } : x)));
-
-  async function run() {
-    const u = user;
-    if (!u) return;
-    setRunning(true);
-    setChecks(INITIAL.map((c) => ({ ...c, status: "pending", message: "", at: null })));
-
-    const cleanup: { leadId?: string; meetingId?: string } = {};
-    const TAG = "[TEST] System Check";
-
+  async function loadMessages() {
     try {
-      // 1. Connection
-      update("connection", { status: "running", message: "" });
-      try {
-        const { error } = await supabase.from("profiles").select("id", { head: true, count: "exact" }).limit(1);
-        if (error) throw error;
-        update("connection", { status: "pass", message: "Reached Supabase API." });
-      } catch (e: any) {
-        update("connection", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 2. Profile
-      update("profile", { status: "running", message: "" });
-      let profileRow: any = null;
-      let roleRows: any[] = [];
-      try {
-        const [profileResult, rolesResult] = await Promise.all([
-          supabase.from("profiles").select("*").eq("id", u.auth_id).maybeSingle(),
-          supabase.from("user_roles").select("role").eq("user_id", u.auth_id),
-        ]);
-        if (profileResult.error) throw profileResult.error;
-        if (rolesResult.error) throw rolesResult.error;
-        if (!profileResult.data) throw new Error("Profile row not found");
-        profileRow = profileResult.data;
-        roleRows = rolesResult.data ?? [];
-        update("profile", { status: "pass", message: `Loaded profile for ${profileResult.data.email}` });
-      } catch (e: any) {
-        update("profile", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 3. Role
-      update("role", { status: "running", message: "" });
-      const detectedRole = roleRows.some((r) => r.role === "admin") ? "admin" : "sales_rep";
-      if (profileRow && detectedRole === u.role) {
-        update("role", { status: "pass", message: `Role = ${detectedRole}` });
-      } else {
-        update("role", { status: "fail", message: `Expected ${u.role}, got ${roleRows.length ? detectedRole : "none"}` });
-      }
-
-      // 4. Admin can read all leads
-      update("admin-leads", { status: "running", message: "" });
-      try {
-        const { data, error, count } = await supabase
-          .from("leads").select("id", { count: "exact" }).limit(5);
-        if (error) throw error;
-        update("admin-leads", { status: "pass", message: `Read ${count ?? data?.length ?? 0} lead(s).` });
-      } catch (e: any) {
-        update("admin-leads", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 5. Rep-scope RLS shape (logical check from policies)
-      update("rep-scope", { status: "running", message: "" });
-      try {
-        // Verify the RLS policy exists by attempting a scoped query mimic.
-        // As admin we can't directly test rep-scope; we instead confirm
-        // the leads_rep_select policy exists logically by reading a non-existent
-        // row id and confirming no error surfaces.
-        const { error } = await supabase.from("leads").select("id").eq("id", "00000000-0000-0000-0000-000000000000");
-        if (error) throw error;
-        update("rep-scope", { status: "pass", message: "RLS policy 'leads_rep_select' is active (rep sees only assigned_rep_id = current_rep_id)." });
-      } catch (e: any) {
-        update("rep-scope", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 6. Create lead
-      update("create-lead", { status: "running", message: "" });
-      try {
-        const { data, error } = await supabase.from("leads").insert({
-          org_name: TAG,
-          org_type: "School",
-          status: "New Lead",
-          notes: "Created by System Check",
-        }).select().single();
-        if (error) throw error;
-        cleanup.leadId = data.id;
-        update("create-lead", { status: "pass", message: `Inserted lead ${data.id.slice(0, 8)}…` });
-      } catch (e: any) {
-        update("create-lead", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 7. Edit lead
-      update("edit-lead", { status: "running", message: "" });
-      if (cleanup.leadId) {
-        try {
-          const { error } = await supabase.from("leads")
-            .update({ notes: "Edited by System Check" })
-            .eq("id", cleanup.leadId);
-          if (error) throw error;
-          update("edit-lead", { status: "pass", message: "Updated notes field." });
-        } catch (e: any) {
-          update("edit-lead", { status: "fail", message: e?.message ?? String(e) });
-        }
-      } else {
-        update("edit-lead", { status: "fail", message: "Skipped — no lead created in step 6." });
-      }
-
-      // 8. Create meeting
-      update("create-meeting", { status: "running", message: "" });
-      if (cleanup.leadId) {
-        try {
-          const { data, error } = await supabase.from("meetings").insert({
-            lead_id: cleanup.leadId,
-            meeting_at: new Date().toISOString(),
-            meeting_type: "Phone",
-            status: "Scheduled",
-            outcome_notes: TAG,
-          }).select().single();
-          if (error) throw error;
-          cleanup.meetingId = data.id;
-          update("create-meeting", { status: "pass", message: `Inserted meeting ${data.id.slice(0, 8)}…` });
-        } catch (e: any) {
-          update("create-meeting", { status: "fail", message: e?.message ?? String(e) });
-        }
-      } else {
-        update("create-meeting", { status: "fail", message: "Skipped — no lead created in step 6." });
-      }
-
-      // 9. Commission calculation (pure logic)
-      update("commission", { status: "running", message: "" });
-      try {
-        const sample: Signup = {
-          id: "x", lead_id: "x", rep_id: "x",
-          signed_date: new Date().toISOString(),
-          paid: true, payment_date: new Date().toISOString(),
-          active_teams: 3, paying_users_active: true,
-          commission_year: "1st year",
-          commission_payment_status: "Pending",
-          admin_notes: "",
-        };
-        const qualified = commissionQualified(sample);
-        const amount = commissionAmount(sample);
-        if (qualified && amount === 500) {
-          update("commission", { status: "pass", message: `Qualified=true, amount=R${amount} (1st year)` });
-        } else {
-          update("commission", { status: "fail", message: `Expected qualified=true / R500, got ${qualified} / R${amount}` });
-        }
-      } catch (e: any) {
-        update("commission", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 10. Activity log write
-      update("activity", { status: "running", message: "" });
-      try {
-        const { data, error } = await supabase.from("activity_logs").insert({
-          actor_id: u.auth_id,
-          actor_name: u.full_name,
-          action: "system_check",
-          detail: TAG,
-          entity_type: "system",
-        }).select().single();
-        if (error) throw error;
-        update("activity", { status: "pass", message: `Wrote activity log ${data.id.slice(0, 8)}…` });
-      } catch (e: any) {
-        update("activity", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 11. RLS blocks unauthorized — try to insert activity log with a fake actor_id
-      update("rls", { status: "running", message: "" });
-      try {
-        const { error } = await supabase.from("activity_logs").insert({
-          actor_id: "00000000-0000-0000-0000-000000000000",
-          actor_name: "spoof",
-          action: "spoof",
-          detail: "should be rejected",
-          entity_type: "system",
-        });
-        if (error) {
-          update("rls", { status: "pass", message: `Blocked as expected: ${error.message}` });
-        } else {
-          update("rls", { status: "fail", message: "Spoofed actor_id insert was NOT blocked." });
-          // best-effort cleanup
-          await supabase.from("activity_logs").delete()
-            .eq("actor_id", "00000000-0000-0000-0000-000000000000");
-        }
-      } catch (e: any) {
-        update("rls", { status: "pass", message: `Blocked: ${e?.message ?? String(e)}` });
-      }
-
-      // 12. Auth → profile → role → rep linkage
-      update("auth-link", { status: "running", message: "" });
-      try {
-        const [{ data: authData }, profileRes, rolesRes, repRes] = await Promise.all([
-          supabase.auth.getUser(),
-          supabase.from("profiles").select("id,email").eq("id", u.auth_id).maybeSingle(),
-          supabase.from("user_roles").select("role").eq("user_id", u.auth_id),
-          supabase.from("reps").select("id,user_id,email").eq("user_id", u.auth_id).maybeSingle(),
-        ]);
-        const authId = authData.user?.id;
-        if (!authId) throw new Error("No auth user");
-        if (!profileRes.data) throw new Error("profiles row missing");
-        if (!rolesRes.data || rolesRes.data.length === 0) throw new Error("user_roles row missing");
-        if (!repRes.data) throw new Error("reps row missing (linked by user_id)");
-        update("auth-link", { status: "pass", message: `auth=${authId.slice(0,8)} · profile✓ · roles=${rolesRes.data.length} · rep=${repRes.data.id.slice(0,8)}` });
-      } catch (e: any) {
-        update("auth-link", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 13. Invite server function reachable (dry-run: re-invite self is idempotent)
-      update("invite-fn", { status: "running", message: "" });
-      try {
-        const list = await callListAccounts();
-        update("invite-fn", { status: "pass", message: `listAccounts OK (${list.length} account${list.length === 1 ? "" : "s"}); inviteAccount endpoint reachable.` });
-        void callInvite; // statically referenced — endpoint exists
-      } catch (e: any) {
-        update("invite-fn", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 14. Password-reset server function reachable
-      update("reset-fn", { status: "running", message: "" });
-      try {
-        // Actually sending a reset to yourself is safe.
-        await callReset({ data: { email: u.email } });
-        update("reset-fn", { status: "pass", message: `Reset email dispatched to ${u.email}.` });
-      } catch (e: any) {
-        update("reset-fn", { status: "fail", message: e?.message ?? String(e) });
-      }
-
-      // 15. /reset-password route reachable
-      update("reset-route", { status: "running", message: "" });
-      try {
-        const res = await fetch("/reset-password", { method: "GET", redirect: "manual" });
-        if (res.status >= 200 && res.status < 400) {
-          update("reset-route", { status: "pass", message: `HTTP ${res.status}` });
-        } else {
-          update("reset-route", { status: "fail", message: `HTTP ${res.status}` });
-        }
-      } catch (e: any) {
-        update("reset-route", { status: "fail", message: e?.message ?? String(e) });
-      }
-    } finally {
-      // Cleanup TEST records
-      if (cleanup.meetingId) {
-        await supabase.from("meetings").delete().eq("id", cleanup.meetingId);
-      }
-      if (cleanup.leadId) {
-        await supabase.from("leads").delete().eq("id", cleanup.leadId);
-      }
-      setRunning(false);
+      const res = await fetch("/api/whatsapp-inbox");
+      const data = await res.json();
+      setMessages(data || []);
+    } catch (err) {
+      console.error(err);
     }
   }
 
-  const pass = checks.filter((c) => c.status === "pass").length;
-  const fail = checks.filter((c) => c.status === "fail").length;
+  useEffect(() => {
+    loadMessages();
+  }, []);
+
+  async function createTestMessage() {
+    await fetch("/api/whatsapp-inbox", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "create_test",
+        sender_name: testName,
+        from_number: testNumber,
+        message_text: testMessage,
+      }),
+    });
+
+    await loadMessages();
+  }
+
+  async function updateMessage(id: string, patch: Partial<InboxItem>) {
+    await fetch("/api/whatsapp-inbox", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, patch }),
+    });
+
+    await loadMessages();
+  }
+
+  async function createSupportTicket(msg: InboxItem) {
+    setBusyId(msg.id);
+
+    try {
+      const res = await fetch("/api/whatsapp-inbox", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "create_support_ticket",
+          message: msg,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Could not create support ticket");
+        return;
+      }
+
+      await loadMessages();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const newCount = useMemo(
+    () => messages.filter((m) => (m.status || "New") === "New").length,
+    [messages],
+  );
+
+  const assignedCount = useMemo(
+    () => messages.filter((m) => (m.status || "") === "Assigned").length,
+    [messages],
+  );
+
+  const handledCount = useMemo(
+    () => messages.filter((m) => (m.status || "") === "Handled").length,
+    [messages],
+  );
 
   return (
-    <div>
-      <PageHeader
-        title="System Check"
-        subtitle="Admin-only backend verification. TEST records are auto-cleaned after each run."
-        action={
-          <button
-            onClick={run}
-            disabled={running}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:opacity-90 disabled:opacity-60"
-          >
-            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            {running ? "Running…" : "Run all checks"}
-          </button>
-        }
-      />
+    <div className="relative left-1/2 w-[min(1280px,calc(100vw-2rem))] -translate-x-1/2 space-y-6 pb-12">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+            4SPORT Sales Hub
+          </p>
 
-      <HowToUse adminOnly>
-        <p><strong>What this page is for:</strong> verify auth, database and workflows are healthy. <em>Admin use only.</em></p>
-        <p className="mt-2"><strong>What to do here:</strong></p>
-        <ul>
-          <li>Click <em>Run all checks</em> after deploys or schema changes.</li>
-          <li>Investigate any failed check before reporting the system OK.</li>
-        </ul>
-        <p className="mt-2"><strong>Before moving on:</strong> all checks should be green; TEST records are cleaned up automatically.</p>
-      </HowToUse>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
+            WhatsApp Inbox
+          </h1>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-        <StatusBadge tone="success">Pass: {pass}</StatusBadge>
+          <p className="mt-2 text-sm text-slate-300">
+            Human triage inbox. No chatbot automation.
+          </p>
+        </div>
 
-        <StatusBadge tone="danger">Fail: {fail}</StatusBadge>
-        <span>Total: {checks.length}</span>
+        <button
+          type="button"
+          onClick={loadMessages}
+          className="inline-flex items-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-100 shadow-lg shadow-cyan-950/30 transition hover:border-cyan-300 hover:bg-cyan-400/15"
+        >
+          <Inbox className="h-4 w-4" />
+          Refresh inbox
+        </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <ul className="divide-y divide-border">
-          {checks.map((c) => (
-            <li key={c.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5">
-                  {c.status === "pass" && <CheckCircle2 className="h-5 w-5 text-success" />}
-                  {c.status === "fail" && <XCircle className="h-5 w-5 text-destructive" />}
-                  {c.status === "running" && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
-                  {c.status === "pending" && <span className="block h-5 w-5 rounded-full border border-border" />}
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{c.label}</p>
-                  {c.message && (
-                    <p className={`mt-1 text-xs ${c.status === "fail" ? "text-destructive" : "text-muted-foreground"}`}>
-                      {c.message}
-                    </p>
-                  )}
+      {/* Guide */}
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-cyan-950/30">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-100 bg-cyan-50 text-xl">
+              💬
+            </div>
+
+            <div>
+              <h2 className="text-base font-bold text-slate-950">How to use this page</h2>
+              <p className="text-sm text-slate-600">
+                Review incoming WhatsApp messages and route them to the right human workflow.
+              </p>
+            </div>
+          </div>
+
+          <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600">
+            WhatsApp guide
+          </span>
+        </div>
+
+        <div className="grid gap-4 p-5 md:grid-cols-3">
+          <InfoBox
+            icon="🎧"
+            title="Support triage"
+            text="Use Assign Support to create a support ticket from a WhatsApp message."
+          />
+
+          <InfoBox
+            icon="🧑‍💼"
+            title="Rep follow-up"
+            text="Use Assign Rep when the message is a lead or sales conversation."
+          />
+
+          <InfoBox
+            icon="✅"
+            title="Close handled items"
+            text="Mark messages as resolved once a human has handled the request."
+          />
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <MiniStat icon={<MessageCircle className="h-5 w-5" />} label="Messages" value={messages.length} tone="info" />
+        <MiniStat icon={<Inbox className="h-5 w-5" />} label="New" value={newCount} tone="warning" />
+        <MiniStat icon={<UserCheck className="h-5 w-5" />} label="Assigned" value={assignedCount} tone="info" />
+        <MiniStat icon={<CheckCircle2 className="h-5 w-5" />} label="Handled" value={handledCount} tone="success" />
+      </div>
+
+      {/* Manual test message */}
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl shadow-cyan-950/25">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600">
+            <FlaskConical className="h-5 w-5" />
+          </div>
+
+          <div>
+            <h2 className="font-display text-lg font-semibold text-slate-950">Manual WhatsApp test message</h2>
+            <p className="text-sm text-slate-600">Create a safe test inbox item without touching the real webhook.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Sender name</span>
+            <input
+              className={inp}
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">WhatsApp number</span>
+            <input
+              className={inp}
+              value={testNumber}
+              onChange={(e) => setTestNumber(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <label className="mt-3 block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Message</span>
+          <textarea
+            className={`${inp} min-h-24`}
+            value={testMessage}
+            onChange={(e) => setTestMessage(e.target.value)}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={createTestMessage}
+          className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300"
+        >
+          <Plus className="h-4 w-4" />
+          Add test message
+        </button>
+      </section>
+
+      {/* Inbox queue */}
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl shadow-cyan-950/25">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600">
+              <Inbox className="h-5 w-5" />
+            </div>
+
+            <div>
+              <h2 className="font-display text-lg font-semibold text-slate-950">Inbox queue</h2>
+              <p className="text-sm text-slate-600">
+                Showing {messages.length} WhatsApp message{messages.length === 1 ? "" : "s"}.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {messages.length === 0 ? (
+          <EmptyPanel icon="💬" title="No WhatsApp messages yet." subtitle="Incoming messages and test messages will appear here." />
+        ) : (
+          <div className="space-y-3">
+            {messages.map((msg) => (
+              <article
+                key={msg.id}
+                className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-cyan-950/10 transition hover:border-cyan-300 hover:shadow-2xl"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600">
+                      <MessageCircle className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {msg.sender_name || "Unknown"}
+                      </p>
+
+                      <p className="mt-1 flex items-center gap-2 text-sm text-slate-600">
+                        <Phone className="h-4 w-4 text-cyan-500" />
+                        {msg.from_number}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                    <Clock className="h-4 w-4" />
+                    {fmtDateTime(msg.created_at)}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 sm:flex-col sm:items-end">
-                {c.status === "pass" && <StatusBadge tone="success">Pass</StatusBadge>}
-                {c.status === "fail" && <StatusBadge tone="danger">Fail</StatusBadge>}
-                {c.status === "running" && <StatusBadge tone="info">Running</StatusBadge>}
-                {c.status === "pending" && <StatusBadge tone="neutral">Pending</StatusBadge>}
-                {c.at && (
-                  <span className="text-[11px] tabular-nums text-muted-foreground">
-                    {new Date(c.at).toLocaleTimeString()}
+
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+                  {msg.message_text}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 font-bold uppercase tracking-wider text-cyan-700">
+                    <Tags className="h-3 w-3" />
+                    {msg.category || "Unsorted"}
                   </span>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+
+                  <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-bold uppercase tracking-wider text-slate-600">
+                    {msg.status || "New"}
+                  </span>
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => createSupportTicket(msg)}
+                    disabled={busyId === msg.id}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-cyan-400 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
+                  >
+                    <Headset className="h-4 w-4" />
+                    {busyId === msg.id ? "Creating..." : "Assign Support"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateMessage(msg.id, {
+                        category: "Rep",
+                        status: "Assigned",
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    Assign Rep
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateMessage(msg.id, {
+                        status: "Handled",
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Resolved
+                  </button>
+
+                  <a
+                    href={`/whatsapp/thread/${msg.from_number}`}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View thread
+                  </a>
+
+                    {msg.linked_support_ticket_id && (
+                      <a
+                        href="/support"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-bold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100"
+                      >
+                        <Headset className="h-4 w-4" />
+                        Support Ticket
+                      </a>
+                    )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
+
+const inp =
+  "mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100";
+
+function InfoBox({
+  icon,
+  title,
+  text,
+}: {
+  icon: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-xl">
+        {icon}
+      </div>
+
+      <p className="font-semibold text-slate-950">{title}</p>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600">{text}</p>
+    </div>
+  );
+}
+
+function MiniStat({
+  icon,
+  label,
+  value,
+  tone = "info",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  tone?: "info" | "success" | "warning";
+}) {
+  const toneClass = {
+    info: "bg-cyan-50 text-cyan-600",
+    success: "bg-emerald-50 text-emerald-600",
+    warning: "bg-amber-50 text-amber-600",
+  }[tone];
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-cyan-950/20">
+      <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${toneClass}`}>
+        {icon}
+      </div>
+
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="mt-2 font-display text-3xl font-semibold text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function EmptyPanel({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+        {icon}
+      </div>
+
+      <p className="font-semibold text-slate-950">{title}</p>
+      <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+    </div>
+  );
+}
+

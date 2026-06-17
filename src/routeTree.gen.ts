@@ -16,7 +16,11 @@ import { Route as BootstrapAdminRouteImport } from './routes/bootstrap-admin'
 import { Route as AuthDebugRouteImport } from './routes/auth-debug'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiWhatsappInboxRouteImport } from './routes/api/whatsapp-inbox'
+import { Route as ApiWhatsappRouteImport } from './routes/api/whatsapp'
+import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as AppSystemCheckRouteImport } from './routes/_app.system-check'
+import { Route as AppSupportRouteImport } from './routes/_app.support'
 import { Route as AppSignupsRouteImport } from './routes/_app.signups'
 import { Route as AppRepsRouteImport } from './routes/_app.reps'
 import { Route as AppPerformanceRouteImport } from './routes/_app.performance'
@@ -24,7 +28,7 @@ import { Route as AppMeetingsRouteImport } from './routes/_app.meetings'
 import { Route as AppLeadsRouteImport } from './routes/_app.leads'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppActivityRouteImport } from './routes/_app.activity'
-import { Route as AppLeadsNewRouteImport } from './routes/_app.leads.new'
+import { Route as AppLeadsNewRouteImport } from './routes/_app.leads_.new'
 import { Route as AppLeadsLeadIdRouteImport } from './routes/_app.leads.$leadId'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -61,9 +65,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWhatsappInboxRoute = ApiWhatsappInboxRouteImport.update({
+  id: '/api/whatsapp-inbox',
+  path: '/api/whatsapp-inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWhatsappRoute = ApiWhatsappRouteImport.update({
+  id: '/api/whatsapp',
+  path: '/api/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppWhatsappRoute = AppWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSystemCheckRoute = AppSystemCheckRouteImport.update({
   id: '/system-check',
   path: '/system-check',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSupportRoute = AppSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSignupsRoute = AppSignupsRouteImport.update({
@@ -102,9 +126,9 @@ const AppActivityRoute = AppActivityRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppLeadsNewRoute = AppLeadsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppLeadsRoute,
+  id: '/leads_/new',
+  path: '/leads/new',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppLeadsLeadIdRoute = AppLeadsLeadIdRouteImport.update({
   id: '/$leadId',
@@ -126,7 +150,11 @@ export interface FileRoutesByFullPath {
   '/performance': typeof AppPerformanceRoute
   '/reps': typeof AppRepsRoute
   '/signups': typeof AppSignupsRoute
+  '/support': typeof AppSupportRoute
   '/system-check': typeof AppSystemCheckRoute
+  '/whatsapp': typeof AppWhatsappRoute
+  '/api/whatsapp': typeof ApiWhatsappRoute
+  '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/leads/new': typeof AppLeadsNewRoute
 }
@@ -144,7 +172,11 @@ export interface FileRoutesByTo {
   '/performance': typeof AppPerformanceRoute
   '/reps': typeof AppRepsRoute
   '/signups': typeof AppSignupsRoute
+  '/support': typeof AppSupportRoute
   '/system-check': typeof AppSystemCheckRoute
+  '/whatsapp': typeof AppWhatsappRoute
+  '/api/whatsapp': typeof ApiWhatsappRoute
+  '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
   '/leads/new': typeof AppLeadsNewRoute
 }
@@ -164,9 +196,13 @@ export interface FileRoutesById {
   '/_app/performance': typeof AppPerformanceRoute
   '/_app/reps': typeof AppRepsRoute
   '/_app/signups': typeof AppSignupsRoute
+  '/_app/support': typeof AppSupportRoute
   '/_app/system-check': typeof AppSystemCheckRoute
+  '/_app/whatsapp': typeof AppWhatsappRoute
+  '/api/whatsapp': typeof ApiWhatsappRoute
+  '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/_app/leads/$leadId': typeof AppLeadsLeadIdRoute
-  '/_app/leads/new': typeof AppLeadsNewRoute
+  '/_app/leads_/new': typeof AppLeadsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -184,7 +220,11 @@ export interface FileRouteTypes {
     | '/performance'
     | '/reps'
     | '/signups'
+    | '/support'
     | '/system-check'
+    | '/whatsapp'
+    | '/api/whatsapp'
+    | '/api/whatsapp-inbox'
     | '/leads/$leadId'
     | '/leads/new'
   fileRoutesByTo: FileRoutesByTo
@@ -202,7 +242,11 @@ export interface FileRouteTypes {
     | '/performance'
     | '/reps'
     | '/signups'
+    | '/support'
     | '/system-check'
+    | '/whatsapp'
+    | '/api/whatsapp'
+    | '/api/whatsapp-inbox'
     | '/leads/$leadId'
     | '/leads/new'
   id:
@@ -221,9 +265,13 @@ export interface FileRouteTypes {
     | '/_app/performance'
     | '/_app/reps'
     | '/_app/signups'
+    | '/_app/support'
     | '/_app/system-check'
+    | '/_app/whatsapp'
+    | '/api/whatsapp'
+    | '/api/whatsapp-inbox'
     | '/_app/leads/$leadId'
-    | '/_app/leads/new'
+    | '/_app/leads_/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -234,6 +282,8 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiWhatsappRoute: typeof ApiWhatsappRoute
+  ApiWhatsappInboxRoute: typeof ApiWhatsappInboxRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -287,11 +337,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/whatsapp-inbox': {
+      id: '/api/whatsapp-inbox'
+      path: '/api/whatsapp-inbox'
+      fullPath: '/api/whatsapp-inbox'
+      preLoaderRoute: typeof ApiWhatsappInboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/whatsapp': {
+      id: '/api/whatsapp'
+      path: '/api/whatsapp'
+      fullPath: '/api/whatsapp'
+      preLoaderRoute: typeof ApiWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/whatsapp': {
+      id: '/_app/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof AppWhatsappRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/system-check': {
       id: '/_app/system-check'
       path: '/system-check'
       fullPath: '/system-check'
       preLoaderRoute: typeof AppSystemCheckRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/support': {
+      id: '/_app/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof AppSupportRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/signups': {
@@ -343,12 +421,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/leads/new': {
-      id: '/_app/leads/new'
-      path: '/new'
+    '/_app/leads_/new': {
+      id: '/_app/leads_/new'
+      path: '/leads/new'
       fullPath: '/leads/new'
       preLoaderRoute: typeof AppLeadsNewRouteImport
-      parentRoute: typeof AppLeadsRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/leads/$leadId': {
       id: '/_app/leads/$leadId'
@@ -362,12 +440,10 @@ declare module '@tanstack/react-router' {
 
 interface AppLeadsRouteChildren {
   AppLeadsLeadIdRoute: typeof AppLeadsLeadIdRoute
-  AppLeadsNewRoute: typeof AppLeadsNewRoute
 }
 
 const AppLeadsRouteChildren: AppLeadsRouteChildren = {
   AppLeadsLeadIdRoute: AppLeadsLeadIdRoute,
-  AppLeadsNewRoute: AppLeadsNewRoute,
 }
 
 const AppLeadsRouteWithChildren = AppLeadsRoute._addFileChildren(
@@ -382,7 +458,10 @@ interface AppRouteChildren {
   AppPerformanceRoute: typeof AppPerformanceRoute
   AppRepsRoute: typeof AppRepsRoute
   AppSignupsRoute: typeof AppSignupsRoute
+  AppSupportRoute: typeof AppSupportRoute
   AppSystemCheckRoute: typeof AppSystemCheckRoute
+  AppWhatsappRoute: typeof AppWhatsappRoute
+  AppLeadsNewRoute: typeof AppLeadsNewRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -393,7 +472,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppPerformanceRoute: AppPerformanceRoute,
   AppRepsRoute: AppRepsRoute,
   AppSignupsRoute: AppSignupsRoute,
+  AppSupportRoute: AppSupportRoute,
   AppSystemCheckRoute: AppSystemCheckRoute,
+  AppWhatsappRoute: AppWhatsappRoute,
+  AppLeadsNewRoute: AppLeadsNewRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -406,17 +488,9 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiWhatsappRoute: ApiWhatsappRoute,
+  ApiWhatsappInboxRoute: ApiWhatsappInboxRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
