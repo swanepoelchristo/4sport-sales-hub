@@ -1,6 +1,7 @@
 // Domain types aligned to Supabase tables:
 // profiles, reps, leads, meetings, signups, commissions, activity_logs
 // PR #6 adds call_center_agents + lead_activity foundation.
+// PR #7 adds lead_candidates waiting room before approved leads.
 
 export type Role = "admin" | "sales_rep" | "call_center_agent";
 
@@ -80,6 +81,59 @@ export interface LeadActivity {
   notes: string;
   next_follow_up_at: string | null;
   created_at: string;
+}
+
+export type LeadCandidateStatus =
+  | "draft"
+  | "needs_check"
+  | "checked_once"
+  | "checked_twice"
+  | "approved"
+  | "rejected"
+  | "converted";
+
+export interface LeadCandidate {
+  id: string;
+  org_name: string;
+  org_type: OrgType;
+  province: string;
+  city: string;
+  region: string;
+  sport_focus: Sport;
+
+  contact_person: string;
+  contact_role: string;
+  public_phone: string;
+  public_email: string;
+  website: string;
+
+  source_url_1: string;
+  source_url_2: string;
+  source_url_3: string;
+  source_note: string;
+
+  verification_status: LeadCandidateStatus;
+
+  check_1_by: string | null;
+  check_1_at: string | null;
+  check_1_note: string;
+
+  check_2_by: string | null;
+  check_2_at: string | null;
+  check_2_note: string;
+
+  approved_by: string | null;
+  approved_at: string | null;
+
+  rejected_by: string | null;
+  rejected_at: string | null;
+  rejected_reason: string;
+
+  converted_lead_id: string | null;
+
+  created_by: string | null;
+  created_at: string;
+  updated_at?: string | null;
 }
 
 export type OrgType = "School" | "Club" | "Academy" | "Other";
@@ -211,6 +265,16 @@ export const SPORTS: Sport[] = [
 export const LEAD_STATUSES: LeadStatus[] = [
   "New Lead", "Contacted", "Meeting Scheduled", "Pitched",
   "Interested", "Not Interested", "Signed", "Paid", "Active", "Lost",
+];
+
+export const LEAD_CANDIDATE_STATUSES: { value: LeadCandidateStatus; label: string }[] = [
+  { value: "draft", label: "Draft" },
+  { value: "needs_check", label: "Needs check" },
+  { value: "checked_once", label: "Checked once" },
+  { value: "checked_twice", label: "Checked twice" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "converted", label: "Converted to lead" },
 ];
 
 export const CALL_OUTCOMES: { value: CallOutcome; label: string }[] = [
