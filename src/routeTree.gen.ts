@@ -9,7 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsAndConditionsRouteImport } from './routes/terms-and-conditions'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RefundCancellationPolicyRouteImport } from './routes/refund-cancellation-policy'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as BootstrapAdminRouteImport } from './routes/bootstrap-admin'
@@ -31,9 +34,25 @@ import { Route as AppActivityRouteImport } from './routes/_app.activity'
 import { Route as AppLeadsNewRouteImport } from './routes/_app.leads_.new'
 import { Route as AppLeadsLeadIdRouteImport } from './routes/_app.leads.$leadId'
 
+const TermsAndConditionsRoute = TermsAndConditionsRouteImport.update({
+  id: '/terms-and-conditions',
+  path: '/terms-and-conditions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundCancellationPolicyRoute =
+  RefundCancellationPolicyRouteImport.update({
+    id: '/refund-cancellation-policy',
+    path: '/refund-cancellation-policy',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -142,7 +161,10 @@ export interface FileRoutesByFullPath {
   '/bootstrap-admin': typeof BootstrapAdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
+  '/refund-cancellation-policy': typeof RefundCancellationPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
@@ -164,7 +186,10 @@ export interface FileRoutesByTo {
   '/bootstrap-admin': typeof BootstrapAdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
+  '/refund-cancellation-policy': typeof RefundCancellationPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
   '/leads': typeof AppLeadsRouteWithChildren
@@ -188,7 +213,10 @@ export interface FileRoutesById {
   '/bootstrap-admin': typeof BootstrapAdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
+  '/refund-cancellation-policy': typeof RefundCancellationPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/_app/activity': typeof AppActivityRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/leads': typeof AppLeadsRouteWithChildren
@@ -212,7 +240,10 @@ export interface FileRouteTypes {
     | '/bootstrap-admin'
     | '/forgot-password'
     | '/login'
+    | '/privacy-policy'
+    | '/refund-cancellation-policy'
     | '/reset-password'
+    | '/terms-and-conditions'
     | '/activity'
     | '/dashboard'
     | '/leads'
@@ -234,7 +265,10 @@ export interface FileRouteTypes {
     | '/bootstrap-admin'
     | '/forgot-password'
     | '/login'
+    | '/privacy-policy'
+    | '/refund-cancellation-policy'
     | '/reset-password'
+    | '/terms-and-conditions'
     | '/activity'
     | '/dashboard'
     | '/leads'
@@ -257,7 +291,10 @@ export interface FileRouteTypes {
     | '/bootstrap-admin'
     | '/forgot-password'
     | '/login'
+    | '/privacy-policy'
+    | '/refund-cancellation-policy'
     | '/reset-password'
+    | '/terms-and-conditions'
     | '/_app/activity'
     | '/_app/dashboard'
     | '/_app/leads'
@@ -281,18 +318,42 @@ export interface RootRouteChildren {
   BootstrapAdminRoute: typeof BootstrapAdminRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  PrivacyPolicyRoute: typeof PrivacyPolicyRoute
+  RefundCancellationPolicyRoute: typeof RefundCancellationPolicyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  TermsAndConditionsRoute: typeof TermsAndConditionsRoute
   ApiWhatsappRoute: typeof ApiWhatsappRoute
   ApiWhatsappInboxRoute: typeof ApiWhatsappInboxRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms-and-conditions': {
+      id: '/terms-and-conditions'
+      path: '/terms-and-conditions'
+      fullPath: '/terms-and-conditions'
+      preLoaderRoute: typeof TermsAndConditionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund-cancellation-policy': {
+      id: '/refund-cancellation-policy'
+      path: '/refund-cancellation-policy'
+      fullPath: '/refund-cancellation-policy'
+      preLoaderRoute: typeof RefundCancellationPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -487,7 +548,10 @@ const rootRouteChildren: RootRouteChildren = {
   BootstrapAdminRoute: BootstrapAdminRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  PrivacyPolicyRoute: PrivacyPolicyRoute,
+  RefundCancellationPolicyRoute: RefundCancellationPolicyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  TermsAndConditionsRoute: TermsAndConditionsRoute,
   ApiWhatsappRoute: ApiWhatsappRoute,
   ApiWhatsappInboxRoute: ApiWhatsappInboxRoute,
 }
