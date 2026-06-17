@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { pushAuthEvent } from "./auth-debug";
 import type {
   Rep, Lead, Meeting, Signup, ActivityLog, Profile, Role,
-  CallCenterAgent, LeadActivity,
+  CallCenterAgent, LeadActivity, LeadCandidate,
 } from "./types";
 
 interface State {
@@ -16,6 +16,7 @@ interface State {
   activity: ActivityLog[];
   callCenterAgents: CallCenterAgent[];
   leadActivity: LeadActivity[];
+  leadCandidates: LeadCandidate[];
 }
 
 const emptyState: State = {
@@ -26,6 +27,7 @@ const emptyState: State = {
   activity: [],
   callCenterAgents: [],
   leadActivity: [],
+  leadCandidates: [],
 };
 
 interface Ctx {
@@ -180,6 +182,50 @@ const leadActivityFromRow = (r: any): LeadActivity => ({
   created_at: r.created_at,
 });
 
+const leadCandidateFromRow = (r: any): LeadCandidate => ({
+  id: r.id,
+  org_name: r.org_name ?? "",
+  org_type: r.org_type ?? "School",
+  province: r.province ?? "",
+  city: r.city ?? "",
+  region: r.region ?? "",
+  sport_focus: r.sport_focus ?? "Other",
+
+  contact_person: r.contact_person ?? "",
+  contact_role: r.contact_role ?? "",
+  public_phone: r.public_phone ?? "",
+  public_email: r.public_email ?? "",
+  website: r.website ?? "",
+
+  source_url_1: r.source_url_1 ?? "",
+  source_url_2: r.source_url_2 ?? "",
+  source_url_3: r.source_url_3 ?? "",
+  source_note: r.source_note ?? "",
+
+  verification_status: r.verification_status ?? "draft",
+
+  check_1_by: r.check_1_by ?? null,
+  check_1_at: r.check_1_at ?? null,
+  check_1_note: r.check_1_note ?? "",
+
+  check_2_by: r.check_2_by ?? null,
+  check_2_at: r.check_2_at ?? null,
+  check_2_note: r.check_2_note ?? "",
+
+  approved_by: r.approved_by ?? null,
+  approved_at: r.approved_at ?? null,
+
+  rejected_by: r.rejected_by ?? null,
+  rejected_at: r.rejected_at ?? null,
+  rejected_reason: r.rejected_reason ?? "",
+
+  converted_lead_id: r.converted_lead_id ?? null,
+
+  created_by: r.created_by ?? null,
+  created_at: r.created_at,
+  updated_at: r.updated_at ?? null,
+});
+
 // ---------- Diff to DB ----------
 function eq(a: any, b: any) { return JSON.stringify(a) === JSON.stringify(b); }
 
@@ -291,7 +337,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   stateRef.current = state;
 
   const loadAll = useCallback(async (profile: Profile) => {
-    const [reps, leads, meetings, signups, activity, callCenterAgents, leadActivity] = await Promise.all([
+    const [reps, leads, meetings, signups, activity, callCenterAgents, leadActivity, leadCandidates] = await Promise.all([
       supabase.from("reps").select("*").eq("archived", false).order("full_name"),
       supabase.from("leads").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("meetings").select("*").eq("archived", false).order("meeting_at", { ascending: false }),
@@ -299,6 +345,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(500),
       (supabase as any).from("call_center_agents").select("*").order("created_at", { ascending: false }),
       (supabase as any).from("lead_activity").select("*").order("created_at", { ascending: false }).limit(1000),
+      (supabase as any).from("lead_candidates").select("*").order("created_at", { ascending: false }).limit(1000),
     ]);
     setStateInner({
       reps: (reps.data ?? []).map(repFromRow),
@@ -308,6 +355,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       activity: (activity.data ?? []).map(activityFromRow),
       callCenterAgents: (callCenterAgents.data ?? []).map(callCenterAgentFromRow),
       leadActivity: (leadActivity.data ?? []).map(leadActivityFromRow),
+      leadCandidates: (leadCandidates.data ?? []).map(leadCandidateFromRow),
     });
     if (!profile.id) {
       const mine = (reps.data ?? []).find((r: any) => r.user_id === profile.auth_id);

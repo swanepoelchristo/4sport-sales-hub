@@ -30,6 +30,7 @@ import { Route as AppRepsRouteImport } from './routes/_app.reps'
 import { Route as AppPerformanceRouteImport } from './routes/_app.performance'
 import { Route as AppMeetingsRouteImport } from './routes/_app.meetings'
 import { Route as AppLeadsRouteImport } from './routes/_app.leads'
+import { Route as AppLeadCandidatesRouteImport } from './routes/_app.lead-candidates'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppActivityRouteImport } from './routes/_app.activity'
 import { Route as AppLeadsNewRouteImport } from './routes/_app.leads_.new'
@@ -140,6 +141,11 @@ const AppLeadsRoute = AppLeadsRouteImport.update({
   path: '/leads',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLeadCandidatesRoute = AppLeadCandidatesRouteImport.update({
+  id: '/lead-candidates',
+  path: '/lead-candidates',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
+  '/lead-candidates': typeof AppLeadCandidatesRoute
   '/leads': typeof AppLeadsRouteWithChildren
   '/meetings': typeof AppMeetingsRoute
   '/performance': typeof AppPerformanceRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
+  '/lead-candidates': typeof AppLeadCandidatesRoute
   '/leads': typeof AppLeadsRouteWithChildren
   '/meetings': typeof AppMeetingsRoute
   '/performance': typeof AppPerformanceRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/_app/activity': typeof AppActivityRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/lead-candidates': typeof AppLeadCandidatesRoute
   '/_app/leads': typeof AppLeadsRouteWithChildren
   '/_app/meetings': typeof AppMeetingsRoute
   '/_app/performance': typeof AppPerformanceRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/terms-and-conditions'
     | '/activity'
     | '/dashboard'
+    | '/lead-candidates'
     | '/leads'
     | '/meetings'
     | '/performance'
@@ -282,6 +292,7 @@ export interface FileRouteTypes {
     | '/terms-and-conditions'
     | '/activity'
     | '/dashboard'
+    | '/lead-candidates'
     | '/leads'
     | '/meetings'
     | '/performance'
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/terms-and-conditions'
     | '/_app/activity'
     | '/_app/dashboard'
+    | '/_app/lead-candidates'
     | '/_app/leads'
     | '/_app/meetings'
     | '/_app/performance'
@@ -488,6 +500,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLeadsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/lead-candidates': {
+      id: '/_app/lead-candidates'
+      path: '/lead-candidates'
+      fullPath: '/lead-candidates'
+      preLoaderRoute: typeof AppLeadCandidatesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -534,6 +553,7 @@ const AppLeadsRouteWithChildren = AppLeadsRoute._addFileChildren(
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppLeadCandidatesRoute: typeof AppLeadCandidatesRoute
   AppLeadsRoute: typeof AppLeadsRouteWithChildren
   AppMeetingsRoute: typeof AppMeetingsRoute
   AppPerformanceRoute: typeof AppPerformanceRoute
@@ -548,6 +568,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppLeadCandidatesRoute: AppLeadCandidatesRoute,
   AppLeadsRoute: AppLeadsRouteWithChildren,
   AppMeetingsRoute: AppMeetingsRoute,
   AppPerformanceRoute: AppPerformanceRoute,

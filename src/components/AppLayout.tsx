@@ -8,6 +8,7 @@ import {
   Users,
   Calendar,
   Building2,
+  ClipboardCheck,
   Banknote,
   UserCog,
   History,
@@ -23,6 +24,7 @@ type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminO
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/leads", label: "Leads", icon: Building2 },
+  { to: "/lead-candidates", label: "Research Inbox", icon: ClipboardCheck },
   { to: "/meetings", label: "Meetings", icon: Calendar },
   { to: "/signups", label: "Signups", icon: Banknote },
   { to: "/support", label: "Support", icon: Headset },
