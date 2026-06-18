@@ -22,6 +22,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiWhatsappInboxRouteImport } from './routes/api/whatsapp-inbox'
 import { Route as ApiWhatsappRouteImport } from './routes/api/whatsapp'
+import { Route as ApiLeadResearchRouteImport } from './routes/api/lead-research'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as AppSystemCheckRouteImport } from './routes/_app.system-check'
 import { Route as AppSupportRouteImport } from './routes/_app.support'
@@ -99,6 +100,11 @@ const ApiWhatsappInboxRoute = ApiWhatsappInboxRouteImport.update({
 const ApiWhatsappRoute = ApiWhatsappRouteImport.update({
   id: '/api/whatsapp',
   path: '/api/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLeadResearchRoute = ApiLeadResearchRouteImport.update({
+  id: '/api/lead-research',
+  path: '/api/lead-research',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWhatsappRoute = AppWhatsappRouteImport.update({
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof AppSupportRoute
   '/system-check': typeof AppSystemCheckRoute
   '/whatsapp': typeof AppWhatsappRoute
+  '/api/lead-research': typeof ApiLeadResearchRoute
   '/api/whatsapp': typeof ApiWhatsappRoute
   '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/support': typeof AppSupportRoute
   '/system-check': typeof AppSystemCheckRoute
   '/whatsapp': typeof AppWhatsappRoute
+  '/api/lead-research': typeof ApiLeadResearchRoute
   '/api/whatsapp': typeof ApiWhatsappRoute
   '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
@@ -245,6 +253,7 @@ export interface FileRoutesById {
   '/_app/support': typeof AppSupportRoute
   '/_app/system-check': typeof AppSystemCheckRoute
   '/_app/whatsapp': typeof AppWhatsappRoute
+  '/api/lead-research': typeof ApiLeadResearchRoute
   '/api/whatsapp': typeof ApiWhatsappRoute
   '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/_app/leads/$leadId': typeof AppLeadsLeadIdRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/system-check'
     | '/whatsapp'
+    | '/api/lead-research'
     | '/api/whatsapp'
     | '/api/whatsapp-inbox'
     | '/leads/$leadId'
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/system-check'
     | '/whatsapp'
+    | '/api/lead-research'
     | '/api/whatsapp'
     | '/api/whatsapp-inbox'
     | '/leads/$leadId'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/_app/support'
     | '/_app/system-check'
     | '/_app/whatsapp'
+    | '/api/lead-research'
     | '/api/whatsapp'
     | '/api/whatsapp-inbox'
     | '/_app/leads/$leadId'
@@ -347,6 +359,7 @@ export interface RootRouteChildren {
   RefundCancellationPolicyRoute: typeof RefundCancellationPolicyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsAndConditionsRoute: typeof TermsAndConditionsRoute
+  ApiLeadResearchRoute: typeof ApiLeadResearchRoute
   ApiWhatsappRoute: typeof ApiWhatsappRoute
   ApiWhatsappInboxRoute: typeof ApiWhatsappInboxRoute
 }
@@ -442,6 +455,13 @@ declare module '@tanstack/react-router' {
       path: '/api/whatsapp'
       fullPath: '/api/whatsapp'
       preLoaderRoute: typeof ApiWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/lead-research': {
+      id: '/api/lead-research'
+      path: '/api/lead-research'
+      fullPath: '/api/lead-research'
+      preLoaderRoute: typeof ApiLeadResearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/whatsapp': {
@@ -594,6 +614,7 @@ const rootRouteChildren: RootRouteChildren = {
   RefundCancellationPolicyRoute: RefundCancellationPolicyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsAndConditionsRoute: TermsAndConditionsRoute,
+  ApiLeadResearchRoute: ApiLeadResearchRoute,
   ApiWhatsappRoute: ApiWhatsappRoute,
   ApiWhatsappInboxRoute: ApiWhatsappInboxRoute,
 }

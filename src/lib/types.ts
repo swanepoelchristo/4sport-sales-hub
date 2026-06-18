@@ -87,7 +87,6 @@ export type LeadCandidateStatus =
   | "draft"
   | "needs_check"
   | "checked_once"
-  | "checked_twice"
   | "approved"
   | "rejected"
   | "converted";
@@ -271,7 +270,6 @@ export const LEAD_CANDIDATE_STATUSES: { value: LeadCandidateStatus; label: strin
   { value: "draft", label: "Draft" },
   { value: "needs_check", label: "Needs check" },
   { value: "checked_once", label: "Checked once" },
-  { value: "checked_twice", label: "Checked twice" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
   { value: "converted", label: "Converted to lead" },
