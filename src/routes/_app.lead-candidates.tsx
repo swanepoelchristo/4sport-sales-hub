@@ -23,7 +23,7 @@ const orgTypes: OrgType[] = ["School", "Club", "Academy", "Other"];
 const statusTone = (s: LeadCandidateStatus) => {
   if (s === "converted" || s === "approved") return "success" as const;
   if (s === "rejected") return "danger" as const;
-  if (s === "checked_twice" || s === "checked_once") return "info" as const;
+  if (s === "checked_once") return "info" as const;
   return "neutral" as const;
 };
 
@@ -52,6 +52,14 @@ function LeadCandidatesPage() {
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [researchTarget, setResearchTarget] = useState({
+    province: "Gauteng",
+    city: "",
+    region: "",
+    org_type: "School" as OrgType,
+    sports: ["Hockey", "Rugby", "Netball"] as Sport[],
+    max_results: 8,
+  });
   const isAdmin = user?.role === "admin";
   const isCallCentreAgent = user?.role === "call_center_agent";
 
@@ -80,6 +88,66 @@ function LeadCandidatesPage() {
   }, [state.leadCandidates, q, status]);
 
   if (!user) return null;
+
+  const generateCandidates = async () => {
+    if (!isAdmin) {
+      setMessage("Only admin can generate public-source candidates.");
+      return;
+    }
+
+    setBusy("generate");
+    setMessage(null);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      setBusy(null);
+      setMessage("You must be logged in to generate candidates.");
+      return;
+    }
+
+    const response = await fetch("/api/lead-research", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(researchTarget),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    setBusy(null);
+
+    if (!response.ok || !result.ok) {
+      setMessage(result.error || "Lead research failed.");
+      return;
+    }
+
+    const inserted = Array.isArray(result.inserted) ? result.inserted : [];
+
+    if (inserted.length) {
+      setState((s) => ({
+        ...s,
+        leadCandidates: [...inserted, ...s.leadCandidates],
+      }));
+    }
+
+    setMessage(
+      inserted.length
+        ? `Generated ${inserted.length} public-source candidate(s). ${result.skipped || 0} duplicate(s) skipped.`
+        : result.message || "No new public-source candidates found."
+    );
+
+    void audit("lead_research.generated_candidates", JSON.stringify({
+      province: researchTarget.province,
+      city: researchTarget.city,
+      org_type: researchTarget.org_type,
+      sports: researchTarget.sports,
+      inserted: inserted.length,
+      skipped: result.skipped || 0,
+    }));
+  };
 
   const addCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,12 +236,12 @@ function LeadCandidatesPage() {
     check_1_note: "Checked against public organisation/admin source.",
   }, "checked_once");
 
-  const markCheckedTwice = (candidate: LeadCandidate) => updateCandidate(candidate, {
-    verification_status: "checked_twice",
-    check_2_by: user.auth_id,
-    check_2_at: new Date().toISOString(),
-    check_2_note: "Double checked against public source details.",
-  }, "checked_twice");
+  const markReadyForAdmin = (candidate: LeadCandidate) => updateCandidate(candidate, {
+    verification_status: "checked_once",
+    check_1_by: candidate.check_1_by || user.auth_id,
+    check_1_at: candidate.check_1_at || new Date().toISOString(),
+    check_1_note: candidate.check_1_note || "Checked against public organisation/admin source.",
+  }, "checked_once");
 
   const rejectCandidate = (candidate: LeadCandidate) => updateCandidate(candidate, {
     verification_status: "rejected",
@@ -188,8 +256,8 @@ function LeadCandidatesPage() {
       return;
     }
 
-    if (candidate.verification_status !== "checked_twice") {
-      setMessage("Candidate must be checked twice before conversion.");
+    if (candidate.verification_status !== "checked_once") {
+      setMessage("Candidate must be checked by a human before conversion.");
       return;
     }
 
@@ -268,7 +336,7 @@ function LeadCandidatesPage() {
 
       <HowToUse>
         <p><strong>What this page is for:</strong> capture public organisation candidates before they become leads.</p>
-        <p className="mt-2"><strong>Rule:</strong> a candidate must be checked once, checked twice, and then approved before becoming a real lead.</p>
+        <p className="mt-2"><strong>Rule:</strong> a candidate must be checked once, then admin converts it before it becomes a real lead.</p>
         <p className="mt-2"><strong>Never collect:</strong> child, athlete, guardian, private, hidden, leaked, or questionable personal information.</p>
       </HowToUse>
 
@@ -276,9 +344,106 @@ function LeadCandidatesPage() {
         <div className="grid gap-3 md:grid-cols-3">
           <SafetyCard title="Public sources only" text="Use school, club, academy, sport body or business/admin public contact pages." />
           <SafetyCard title="Waiting room first" text="Candidates stay here. They do not appear in the call queue until converted by admin." />
-          <SafetyCard title="Double check required" text="A candidate must pass two checks before it can become a lead." />
+          <SafetyCard title="Human check required" text="A candidate must pass one human check before admin can convert it to a lead." />
         </div>
       </Section>
+
+      {isAdmin && (
+        <Section title="Automatic public lead research">
+          <div className="rounded-xl border border-border bg-secondary p-4">
+            <div className="mb-4 flex items-start gap-3">
+              <ShieldAlert className="mt-0.5 h-5 w-5 text-primary" />
+              <div>
+                <p className="font-semibold">Generate candidates from public sources</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This searches public web results and saves matches into Research Inbox only. It does not create real leads.
+                  Human check is still required before admin conversion.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4">
+              <Select
+                label="Province"
+                value={researchTarget.province}
+                onChange={(v) => setResearchTarget({ ...researchTarget, province: v })}
+                options={PROVINCES}
+              />
+              <Select
+                label="Organisation type"
+                value={researchTarget.org_type}
+                onChange={(v) => setResearchTarget({ ...researchTarget, org_type: v as OrgType })}
+                options={orgTypes}
+              />
+              <Input
+                label="City optional"
+                value={researchTarget.city}
+                onChange={(v) => setResearchTarget({ ...researchTarget, city: v })}
+              />
+              <Input
+                label="Region optional"
+                value={researchTarget.region}
+                onChange={(v) => setResearchTarget({ ...researchTarget, region: v })}
+              />
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sports to research</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {SPORTS.filter((sport) => sport !== "Other").map((sport) => {
+                  const active = researchTarget.sports.includes(sport);
+                  return (
+                    <button
+                      key={sport}
+                      type="button"
+                      onClick={() => {
+                        const next = active
+                          ? researchTarget.sports.filter((s) => s !== sport)
+                          : [...researchTarget.sports, sport];
+                        setResearchTarget({ ...researchTarget, sports: next.length ? next : ["Other"] });
+                      }}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card text-muted-foreground"
+                      }`}
+                    >
+                      {sport}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <label>
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Max candidates</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={researchTarget.max_results}
+                  onChange={(e) => setResearchTarget({ ...researchTarget, max_results: Number(e.target.value || 8) })}
+                  className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={generateCandidates}
+                disabled={busy === "generate"}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                <Search className="h-4 w-4" />
+                {busy === "generate" ? "Generating..." : "Generate candidates"}
+              </button>
+              {message && <p className="text-sm text-muted-foreground">{message}</p>}
+            </div>
+          </div>
+        </Section>
+      )}
 
       {(isAdmin || isCallCentreAgent) && (
         <Section title="Add public-source candidate">
@@ -355,7 +520,7 @@ function LeadCandidatesPage() {
                 busy={busy}
                 canAdminConvert={isAdmin}
                 onCheckedOnce={markCheckedOnce}
-                onCheckedTwice={markCheckedTwice}
+                onReadyForAdmin={markReadyForAdmin}
                 onReject={rejectCandidate}
                 onConvert={convertToLead}
               />
@@ -384,7 +549,7 @@ function CandidateCard({
   busy,
   canAdminConvert,
   onCheckedOnce,
-  onCheckedTwice,
+  onReadyForAdmin,
   onReject,
   onConvert,
 }: {
@@ -392,7 +557,7 @@ function CandidateCard({
   busy: string | null;
   canAdminConvert: boolean;
   onCheckedOnce: (c: LeadCandidate) => void;
-  onCheckedTwice: (c: LeadCandidate) => void;
+  onReadyForAdmin: (c: LeadCandidate) => void;
   onReject: (c: LeadCandidate) => void;
   onConvert: (c: LeadCandidate) => void;
 }) {
@@ -421,7 +586,7 @@ function CandidateCard({
 
       <div className="mt-4 rounded-lg border border-border bg-secondary p-3 text-xs text-muted-foreground">
         <p><strong>Check 1:</strong> {candidate.check_1_at ? new Date(candidate.check_1_at).toLocaleString("en-ZA") : "Not done"}</p>
-        <p className="mt-1"><strong>Check 2:</strong> {candidate.check_2_at ? new Date(candidate.check_2_at).toLocaleString("en-ZA") : "Not done"}</p>
+        <p className="mt-1"><strong>Admin gate:</strong> {candidate.converted_lead_id ? "Converted to lead" : "Not converted yet"}</p>
         {candidate.rejected_reason && <p className="mt-1"><strong>Rejected:</strong> {candidate.rejected_reason}</p>}
       </div>
 
@@ -432,19 +597,13 @@ function CandidateCard({
           </ActionButton>
         )}
 
-        {candidate.verification_status === "checked_once" && (
-          <ActionButton disabled={busy === `checked_twice-${candidate.id}`} onClick={() => onCheckedTwice(candidate)}>
-            <CheckCircle2 className="h-4 w-4" /> Checked twice
-          </ActionButton>
-        )}
-
-        {["needs_check", "checked_once", "checked_twice"].includes(candidate.verification_status) && (
+        {["needs_check", "checked_once"].includes(candidate.verification_status) && (
           <ActionButton disabled={busy === `rejected-${candidate.id}`} onClick={() => onReject(candidate)}>
             <XCircle className="h-4 w-4" /> Reject
           </ActionButton>
         )}
 
-        {canAdminConvert && candidate.verification_status === "checked_twice" && (
+        {canAdminConvert && candidate.verification_status === "checked_once" && (
           <button
             type="button"
             disabled={busy === `convert-${candidate.id}`}
