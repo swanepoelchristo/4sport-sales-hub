@@ -722,6 +722,14 @@ function buildCallHook(orgName: string, activityFocus: string, contactRole: stri
   return `Call hook: Hi, I am contacting ${personLine} at ${orgName} about ${activity}. I found this public role contact on your official school website. 4SPORT helps schools manage registrations, parent consent, event documents, team/group communication, fixtures and activity admin in one place. Suggested route: ${channel}.`;
 }
 
+function buildOfficeRouteHook(orgName: string, activityFocus: string, channel: string) {
+  const activity = activityFocus && activityFocus !== "General School"
+    ? activityFocus
+    : "school activities";
+
+  return `Office route hook: Hi, I am calling ${orgName}. I am looking for the teacher or staff member who handles ${activity}. I could not find a named public ${activity} contact on your official website, so I am calling the main school office respectfully. 4SPORT helps schools manage registrations, parent consent, fixtures, team/group communication and activity admin in one place. Suggested route: ${channel}.`;
+}
+
 async function enrichPublicContact(sourceUrl: string, website: string, orgName: string, activityFocus: string) {
   const urls = candidateUrlsForEnrichment(sourceUrl, website);
 
@@ -759,16 +767,21 @@ async function enrichPublicContact(sourceUrl: string, website: string, orgName: 
     }
   }
 
+  const hasOfficeRoute = Boolean(generalEmail || generalPhone);
+  const officeChannel = hasOfficeRoute
+    ? "office route; ask who handles the selected activity/sport"
+    : "not usable; no public contact found";
+
   return {
-    publicEmail: "",
-    publicPhone: "",
+    publicEmail: hasOfficeRoute ? generalEmail : "",
+    publicPhone: hasOfficeRoute ? generalPhone : "",
     contactPerson: "",
-    contactRole: "",
+    contactRole: hasOfficeRoute ? "School office route — ask for activity/sport contact" : "",
     evidence: "",
     enrichmentUrl: generalUrl,
-    callHook: "",
+    callHook: hasOfficeRoute ? buildOfficeRouteHook(orgName, activityFocus, officeChannel) : "",
     targetedContactFound: false,
-    directContactChannel: "not call-ready; only general school contact found",
+    directContactChannel: officeChannel,
     generalEmail,
     generalPhone,
   } satisfies PublicContactEnrichment;
@@ -851,14 +864,13 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
 
   const enrichment = await enrichPublicContact(sourceUrl, website, orgName, quality.activityFocus);
 
-  if ((target.org_type || "School") === "School" && !enrichment.targetedContactFound) {
-    return null;
-  }
+  // PR16: do not reject small schools just because no named sport/activity person is listed.
+  // A targeted contact is Gold. A general official school office route is Silver/Office Route.
 
   const publicEmail = enrichment.publicEmail || snippetEmail;
   const publicPhone = enrichment.publicPhone || snippetPhone;
   const contactPerson = enrichment.contactPerson;
-  const contactRole = enrichment.contactRole;
+  const contactRole = enrichment.contactRole || "School office route — ask for activity/sport contact";
   const hasPublicContact = Boolean(publicEmail || publicPhone);
 
   if ((target.org_type || "School") === "School" && !hasPublicContact) {
@@ -885,21 +897,26 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
     source_url_2: "",
     source_url_3: "",
     source_note: [
-      "AUTO-GENERATED CALL-READY PUBLIC-SOURCE CANDIDATE.",
+      "AUTO-GENERATED PUBLIC-SOURCE CANDIDATE.",
       "Human check required before conversion to a real lead.",
       "Official school-owned website required. Directory-only sources are rejected.",
-      "Targeted activity/sport contact required. General school switchboard alone is not call-ready.",
+      "Targeted contact preferred. Small-school office route is allowed when no public sport/activity person is listed.",
       callHook,
       `Contact route: ${enrichment.directContactChannel}`,
+      `Lead contact confidence: ${enrichment.targetedContactFound ? "GOLD — targeted public role contact found." : "SILVER/OFFICE ROUTE — official school site with general public contact only."}`,
       `Lead quality: ${quality.quality} (${quality.score}/100)`,
-      "Source confidence: official school-owned website with targeted public role contact.",
+      enrichment.targetedContactFound
+        ? "Source confidence: official school-owned website with targeted public role contact."
+        : "Source confidence: official school-owned website with general public contact only.",
       `Source type: ${classifySource(result)}`,
       `Activity category: ${quality.activityCategory}`,
       `Activity focus: ${quality.activityFocus}`,
-      enrichment.publicPhone ? `Targeted public phone found: ${enrichment.publicPhone}` : "",
-      enrichment.generalPhone ? `General school phone found but not used as target: ${enrichment.generalPhone}` : "",
-      enrichment.publicEmail ? `Targeted public email found: ${enrichment.publicEmail}` : "",
-      enrichment.generalEmail ? `General school email found but not used as target: ${enrichment.generalEmail}` : "",
+      enrichment.targetedContactFound && enrichment.publicPhone ? `Targeted public phone found: ${enrichment.publicPhone}` : "",
+      !enrichment.targetedContactFound && enrichment.publicPhone ? `Office route public phone: ${enrichment.publicPhone}` : "",
+      enrichment.targetedContactFound && enrichment.generalPhone ? `General school phone found but not used as target: ${enrichment.generalPhone}` : "",
+      enrichment.targetedContactFound && enrichment.publicEmail ? `Targeted public email found: ${enrichment.publicEmail}` : "",
+      !enrichment.targetedContactFound && enrichment.publicEmail ? `Office route public email: ${enrichment.publicEmail}` : "",
+      enrichment.targetedContactFound && enrichment.generalEmail ? `General school email found but not used as target: ${enrichment.generalEmail}` : "",
       enrichment.contactRole ? `Public staff/activity role found: ${enrichment.contactRole}` : "",
       enrichment.contactPerson ? `Public contact person found: ${enrichment.contactPerson}` : "",
       enrichment.evidence ? `Public contact evidence: ${enrichment.evidence}` : "",
@@ -980,7 +997,7 @@ export const Route = createFileRoute("/api/lead-research")({
             skipped: 0,
             rejected_by_quality: rejectedByQuality,
             queries,
-            message: "No call-ready official school candidates with targeted role contact found for this target.",
+            message: "No usable official school candidates with public contact found for this target.",
           });
         }
 
