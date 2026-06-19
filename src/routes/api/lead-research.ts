@@ -715,6 +715,7 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
     source_note: [
       "AUTO-GENERATED PUBLIC-SOURCE CANDIDATE.",
       "Human check required before conversion to a real lead.",
+      enrichment.callHook,
       `Lead quality: ${quality.quality} (${quality.score}/100)`,
       `Source type: ${classifySource(result)}`,
       `Activity category: ${quality.activityCategory}`,
@@ -725,7 +726,6 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
       enrichment.contactPerson ? `Public contact person found: ${enrichment.contactPerson}` : "",
       enrichment.evidence ? `Public contact evidence: ${enrichment.evidence}` : "",
       enrichment.enrichmentUrl ? `Public enrichment URL: ${enrichment.enrichmentUrl}` : "",
-      enrichment.callHook,
       `Quality reasons: ${quality.reasons.join("; ")}`,
       `Search query: ${query}`,
       title ? `Result title: ${title}` : "",
@@ -810,7 +810,7 @@ export const Route = createFileRoute("/api/lead-research")({
 
         const { data: existingCandidates } = await supabaseAdmin
           .from("lead_candidates")
-          .select("source_url_1")
+          .select("id, source_url_1, verification_status, converted_lead_id")
           .in("source_url_1", urls);
 
         const { data: existingLeads } = await supabaseAdmin
@@ -818,39 +818,109 @@ export const Route = createFileRoute("/api/lead-research")({
           .select("source_url")
           .in("source_url", urls);
 
-        const existingUrls = new Set([
-          ...(existingCandidates || []).map((r: any) => r.source_url_1),
-          ...(existingLeads || []).map((r: any) => r.source_url),
-        ].filter(Boolean));
+        const existingCandidateByUrl = new Map(
+          (existingCandidates || [])
+            .filter((row: any) => row.source_url_1)
+            .map((row: any) => [row.source_url_1, row])
+        );
 
-        const toInsert = allCandidates.filter((c) => !existingUrls.has(c.source_url_1));
+        const existingLeadUrls = new Set(
+          (existingLeads || [])
+            .map((row: any) => row.source_url)
+            .filter(Boolean)
+        );
 
-        if (!toInsert.length) {
+        const toRefresh = allCandidates.filter((candidate) => {
+          const existing = existingCandidateByUrl.get(candidate.source_url_1);
+          return existing && !existingLeadUrls.has(candidate.source_url_1);
+        });
+
+        const toInsert = allCandidates.filter((candidate) => (
+          !existingCandidateByUrl.has(candidate.source_url_1)
+          && !existingLeadUrls.has(candidate.source_url_1)
+        ));
+
+        const updatedExisting: any[] = [];
+
+        for (const candidate of toRefresh) {
+          const existing = existingCandidateByUrl.get(candidate.source_url_1) as any;
+          if (!existing?.id) continue;
+
+          const refreshPatch = {
+            org_name: candidate.org_name,
+            org_type: candidate.org_type,
+            province: candidate.province,
+            city: candidate.city,
+            region: candidate.region,
+            sport_focus: candidate.sport_focus,
+
+            contact_person: candidate.contact_person,
+            contact_role: candidate.contact_role,
+            public_phone: candidate.public_phone,
+            public_email: candidate.public_email,
+            website: candidate.website,
+
+            source_url_1: candidate.source_url_1,
+            source_url_2: candidate.source_url_2,
+            source_url_3: candidate.source_url_3,
+            source_note: [
+              "REFRESHED PUBLIC CONTACT ENRICHMENT.",
+              candidate.source_note,
+            ].join("\n"),
+          };
+
+          const { data: updated, error: updateError } = await supabaseAdmin
+            .from("lead_candidates")
+            .update(refreshPatch)
+            .eq("id", existing.id)
+            .select("*")
+            .single();
+
+          if (updateError) {
+            return Response.json({ ok: false, error: updateError.message }, { status: 500 });
+          }
+
+          if (updated) updatedExisting.push(updated);
+        }
+
+        let insertedData: any[] = [];
+
+        if (toInsert.length) {
+          const { data, error } = await supabaseAdmin
+            .from("lead_candidates")
+            .insert(toInsert)
+            .select("*");
+
+          if (error) {
+            return Response.json({ ok: false, error: error.message }, { status: 500 });
+          }
+
+          insertedData = data || [];
+        }
+
+        if (!insertedData.length && !updatedExisting.length) {
           return Response.json({
             ok: true,
             inserted: [],
+            updated_existing: [],
             skipped: allCandidates.length,
             rejected_by_quality: rejectedByQuality,
             queries,
-            message: "All high-quality candidates already exist in Research Inbox or Leads.",
+            message: "All high-quality candidates already exist in Leads, or no refreshable Research Inbox candidate was found.",
           });
-        }
-
-        const { data, error } = await supabaseAdmin
-          .from("lead_candidates")
-          .insert(toInsert)
-          .select("*");
-
-        if (error) {
-          return Response.json({ ok: false, error: error.message }, { status: 500 });
         }
 
         return Response.json({
           ok: true,
-          inserted: data || [],
-          skipped: allCandidates.length - toInsert.length,
+          inserted: insertedData,
+          updated_existing: updatedExisting,
+          skipped: allCandidates.length - toInsert.length - toRefresh.length,
           rejected_by_quality: rejectedByQuality,
           queries,
+          message: [
+            insertedData.length ? `Generated ${insertedData.length} new candidate(s).` : "",
+            updatedExisting.length ? `Refreshed ${updatedExisting.length} existing candidate(s) with public contact enrichment.` : "",
+          ].filter(Boolean).join(" "),
         });
       },
     },
