@@ -136,6 +136,20 @@ const DIRECTORY_SIGNALS = [
   "sa-schools",
   "school and college listings",
   "contact details, location & map",
+  "twinkl",
+  "twinkl.co.za",
+  "twinkl.com",
+  "top 10",
+  "best high schools",
+  "best schools",
+  "school fees",
+  "schools in pretoria",
+  "ranking",
+  "rankings",
+  "article",
+  "blog",
+  "guide",
+  "listicle",
 ];
 
 const GENERIC_TITLE_SIGNALS = [
@@ -148,6 +162,59 @@ const GENERIC_TITLE_SIGNALS = [
   "district office",
   "regional office",
 ];
+
+const NON_CALL_READY_CONTENT_SIGNALS = [
+  "top 10",
+  "top schools",
+  "best high schools",
+  "best schools",
+  "school fees",
+  "fees (2026)",
+  "schools in pretoria",
+  "ranking",
+  "rankings",
+  "article",
+  "blog",
+  "guide",
+  "listicle",
+  "twinkl",
+  "study portal",
+  "education resources",
+];
+
+const NON_OFFICIAL_SCHOOL_HOST_SIGNALS = [
+  "twinkl",
+  "school-register",
+  "schoolhive",
+  "schools4sa",
+  "schoolguide",
+  "schoolparrot",
+  "brabys",
+  "snupit",
+  "zaubee",
+  "yellosa",
+  "africabizinfo",
+];
+
+function isNonCallReadyContent(result: BraveResult) {
+  const title = lower(result.title);
+  const url = lower(result.url);
+  const host = hostFromUrl(cleanText(result.url));
+  const description = lower(result.description);
+  const snippets = Array.isArray(result.extra_snippets)
+    ? result.extra_snippets.map(lower).join(" ")
+    : "";
+  const combined = [title, url, host, description, snippets].join(" ");
+
+  return (
+    hasAny(combined, NON_CALL_READY_CONTENT_SIGNALS)
+    || hasAny(host, NON_OFFICIAL_SCHOOL_HOST_SIGNALS)
+    || /\/blog\//i.test(url)
+    || /\/article\//i.test(url)
+    || /\/resources?\//i.test(url)
+  );
+}
+
 
 const INDIVIDUAL_SCHOOL_NAME_SIGNALS = [
   "school",
@@ -226,6 +293,10 @@ function classifySource(result: BraveResult): SourceType {
     ? result.extra_snippets.map(lower).join(" ")
     : "";
   const combined = [title, url, host, description, snippets].join(" ");
+
+  if (isNonCallReadyContent(result)) {
+    return "directory";
+  }
 
   if (hasAny(combined, GOVERNMENT_SIGNALS) || host.endsWith(".gov.za")) {
     return "government_department";
@@ -323,7 +394,7 @@ function buildQueries(target: Required<Pick<ResearchTarget, "province" | "org_ty
   const queries: string[] = [];
 
   if (orgType === "School") {
-    const rejectTerms = "-department -government -directory -association -federation -sashoc -school-register -schoolhive -schools4sa -schoolguide -schoolparrot -brabys -snupit -zaubee -yellosa";
+    const rejectTerms = "-department -government -directory -association -federation -sashoc -school-register -schoolhive -schools4sa -schoolguide -schoolparrot -brabys -snupit -zaubee -yellosa -twinkl -fees -ranking -rankings -blog -article";
     queries.push(`${place} "High School" "Contact" official website ${rejectTerms}`);
     queries.push(`${place} "Primary School" "Contact" official website ${rejectTerms}`);
     queries.push(`${place} "College" "Contact" school official website ${rejectTerms}`);
@@ -695,6 +766,10 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
   const quality = scoreResult(result, target);
 
   if (!quality.allowed) return null;
+
+  if ((target.org_type || "School") === "School" && isNonCallReadyContent(result)) {
+    return null;
+  }
 
   const enrichment = await enrichPublicContact(sourceUrl, website, orgName, quality.activityFocus);
   const publicEmail = enrichment.publicEmail || snippetEmail;
