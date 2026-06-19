@@ -167,10 +167,12 @@ function LeadCandidatesPage() {
       });
     }
 
+    setStatus("needs_check");
+
     setMessage(
       inserted.length || updatedExisting.length
         ? [
-            inserted.length ? `Generated ${inserted.length} call-ready candidate(s).` : "",
+            inserted.length ? `Generated ${inserted.length} candidate(s).` : "",
             updatedExisting.length ? `Refreshed ${updatedExisting.length} existing candidate(s).` : "",
             `${result.skipped || 0} duplicate(s) skipped.`,
           ].filter(Boolean).join(" ")
@@ -541,8 +543,8 @@ function LeadCandidatesPage() {
           </label>
 
           <select value={status} onChange={(e) => setStatus(e.target.value as LeadCandidateStatus | "all")} className="rounded-lg border border-input bg-secondary px-3 py-2 text-sm">
-            <option value="all">All statuses</option>
             {LEAD_CANDIDATE_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            <option value="all">All statuses incl. rejected history</option>
           </select>
         </div>
       </Section>
@@ -572,6 +574,22 @@ function LeadCandidatesPage() {
 }
 
 function SafetyCard({ title, text }: { title: string; text: string }) {
+  const sourceNoteLines = (candidate.source_note || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const noteValue = (prefix: string) => (
+    sourceNoteLines
+      .find((line) => line.startsWith(prefix))
+      ?.replace(prefix, "")
+      .trim() || ""
+  );
+
+  const leadConfidence = noteValue("Lead contact confidence:");
+  const contactRoute = noteValue("Contact route:");
+  const sourceConfidence = noteValue("Source confidence:");
+
   return (
     <div className="rounded-xl border border-border bg-secondary p-4">
       <div className="mb-2 flex items-center gap-2 text-primary">
@@ -600,6 +618,22 @@ function CandidateCard({
   onReject: (c: LeadCandidate) => void;
   onConvert: (c: LeadCandidate) => void;
 }) {
+  const sourceNoteLines = (candidate.source_note || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const noteValue = (prefix: string) => (
+    sourceNoteLines
+      .find((line) => line.startsWith(prefix))
+      ?.replace(prefix, "")
+      .trim() || ""
+  );
+
+  const leadConfidence = noteValue("Lead contact confidence:");
+  const contactRoute = noteValue("Contact route:");
+  const sourceConfidence = noteValue("Source confidence:");
+
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -620,8 +654,17 @@ function CandidateCard({
         <Info label="Source URL 1" value={candidate.source_url_1 || "—"} />
         <Info label="Source URL 2" value={candidate.source_url_2 || "—"} />
         <Info label="Source URL 3" value={candidate.source_url_3 || "—"} />
-        <Info label="Source note" value={candidate.source_note || "—"} />
+        <Info label="Lead confidence" value={leadConfidence || "—"} />
+        <Info label="Contact route" value={contactRoute || "—"} />
+        <Info label="Source confidence" value={sourceConfidence || "—"} />
       </div>
+
+      {candidate.source_note && (
+        <details className="mt-4 rounded-lg border border-border bg-secondary p-3 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-semibold text-foreground">Full source note / audit trail</summary>
+          <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-xs leading-relaxed">{candidate.source_note}</pre>
+        </details>
+      )}
 
       <div className="mt-4 rounded-lg border border-border bg-secondary p-3 text-xs text-muted-foreground">
         <p><strong>Check 1:</strong> {candidate.check_1_at ? new Date(candidate.check_1_at).toLocaleString("en-ZA") : "Not done"}</p>
@@ -658,6 +701,22 @@ function CandidateCard({
 }
 
 function ActionButton({ children, disabled, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
+  const sourceNoteLines = (candidate.source_note || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const noteValue = (prefix: string) => (
+    sourceNoteLines
+      .find((line) => line.startsWith(prefix))
+      ?.replace(prefix, "")
+      .trim() || ""
+  );
+
+  const leadConfidence = noteValue("Lead contact confidence:");
+  const contactRoute = noteValue("Contact route:");
+  const sourceConfidence = noteValue("Source confidence:");
+
   return (
     <button
       type="button"
@@ -671,6 +730,22 @@ function ActionButton({ children, disabled, onClick }: { children: React.ReactNo
 }
 
 function Input({ label, value, onChange, required = false }: { label: string; value: string; onChange: (v: string) => void; required?: boolean }) {
+  const sourceNoteLines = (candidate.source_note || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const noteValue = (prefix: string) => (
+    sourceNoteLines
+      .find((line) => line.startsWith(prefix))
+      ?.replace(prefix, "")
+      .trim() || ""
+  );
+
+  const leadConfidence = noteValue("Lead contact confidence:");
+  const contactRoute = noteValue("Contact route:");
+  const sourceConfidence = noteValue("Source confidence:");
+
   return (
     <label>
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
@@ -685,6 +760,22 @@ function Input({ label, value, onChange, required = false }: { label: string; va
 }
 
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: readonly string[] }) {
+  const sourceNoteLines = (candidate.source_note || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const noteValue = (prefix: string) => (
+    sourceNoteLines
+      .find((line) => line.startsWith(prefix))
+      ?.replace(prefix, "")
+      .trim() || ""
+  );
+
+  const leadConfidence = noteValue("Lead contact confidence:");
+  const contactRoute = noteValue("Contact route:");
+  const sourceConfidence = noteValue("Source confidence:");
+
   return (
     <label>
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
@@ -700,6 +791,22 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 }
 
 function Info({ label, value }: { label: string; value: string }) {
+  const sourceNoteLines = (candidate.source_note || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const noteValue = (prefix: string) => (
+    sourceNoteLines
+      .find((line) => line.startsWith(prefix))
+      ?.replace(prefix, "")
+      .trim() || ""
+  );
+
+  const leadConfidence = noteValue("Lead contact confidence:");
+  const contactRoute = noteValue("Contact route:");
+  const sourceConfidence = noteValue("Source confidence:");
+
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
