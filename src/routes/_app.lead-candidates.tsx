@@ -147,17 +147,33 @@ function LeadCandidatesPage() {
     }
 
     const inserted = Array.isArray(result.inserted) ? result.inserted : [];
+    const updatedExisting = Array.isArray(result.updated_existing) ? result.updated_existing : [];
 
-    if (inserted.length) {
-      setState((s) => ({
-        ...s,
-        leadCandidates: [...inserted, ...s.leadCandidates],
-      }));
+    if (inserted.length || updatedExisting.length) {
+      setState((current) => {
+        const byId = new Map(current.leadCandidates.map((candidate) => [candidate.id, candidate]));
+
+        for (const candidate of updatedExisting) {
+          byId.set(candidate.id, candidate);
+        }
+
+        const insertedIds = new Set(inserted.map((candidate: LeadCandidate) => candidate.id));
+        const refreshedList = Array.from(byId.values()).filter((candidate) => !insertedIds.has(candidate.id));
+
+        return {
+          ...current,
+          leadCandidates: [...inserted, ...refreshedList],
+        };
+      });
     }
 
     setMessage(
-      inserted.length
-        ? `Generated ${inserted.length} public-source candidate(s). ${result.skipped || 0} duplicate(s) skipped.`
+      inserted.length || updatedExisting.length
+        ? [
+            inserted.length ? `Generated ${inserted.length} public-source candidate(s).` : "",
+            updatedExisting.length ? `Refreshed ${updatedExisting.length} existing candidate(s).` : "",
+            `${result.skipped || 0} duplicate(s) skipped.`,
+          ].filter(Boolean).join(" ")
         : result.message || "No new public-source candidates found."
     );
 
@@ -167,6 +183,7 @@ function LeadCandidatesPage() {
       org_type: researchTarget.org_type,
       sports: researchTarget.sports,
       inserted: inserted.length,
+      updated_existing: updatedExisting.length,
       skipped: result.skipped || 0,
     }));
   };
