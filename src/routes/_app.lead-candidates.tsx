@@ -170,7 +170,7 @@ function LeadCandidatesPage() {
     setMessage(
       inserted.length || updatedExisting.length
         ? [
-            inserted.length ? `Generated ${inserted.length} public-source candidate(s).` : "",
+            inserted.length ? `Generated ${inserted.length} call-ready candidate(s).` : "",
             updatedExisting.length ? `Refreshed ${updatedExisting.length} existing candidate(s).` : "",
             `${result.skipped || 0} duplicate(s) skipped.`,
           ].filter(Boolean).join(" ")

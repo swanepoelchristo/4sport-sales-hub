@@ -129,6 +129,13 @@ const DIRECTORY_SIGNALS = [
   "gauteng.co.za",
   "zaubee",
   "africabizinfo",
+  "school-register",
+  "school-register.co.za",
+  "schoolhive",
+  "schoolhive.co.za",
+  "sa-schools",
+  "school and college listings",
+  "contact details, location & map",
 ];
 
 const GENERIC_TITLE_SIGNALS = [
@@ -316,14 +323,14 @@ function buildQueries(target: Required<Pick<ResearchTarget, "province" | "org_ty
   const queries: string[] = [];
 
   if (orgType === "School") {
-    const rejectTerms = "-department -government -directory -association -federation -sashoc";
+    const rejectTerms = "-department -government -directory -association -federation -sashoc -school-register -schoolhive -schools4sa -schoolguide -schoolparrot -brabys -snupit -zaubee -yellosa";
     queries.push(`${place} "High School" "Contact" official website ${rejectTerms}`);
     queries.push(`${place} "Primary School" "Contact" official website ${rejectTerms}`);
     queries.push(`${place} "College" "Contact" school official website ${rejectTerms}`);
     queries.push(`${place} "Laerskool" "Kontak" ${rejectTerms}`);
     queries.push(`${place} "Hoerskool" "Kontak" ${rejectTerms}`);
-    queries.push(`${place} school extramural activities contact ${rejectTerms}`);
-    queries.push(`${place} school choir maths club robotics contact ${rejectTerms}`);
+    queries.push(`${place} school official website contact extramural activities ${rejectTerms}`);
+    queries.push(`${place} school official website contact choir maths club robotics ${rejectTerms}`);
 
     for (const activity of activities) {
       if (activity === "Other") continue;
@@ -418,13 +425,13 @@ function scoreResult(result: BraveResult, target: ResearchTarget): QualityResult
     "Low";
 
   return {
-    allowed: score >= 55,
+    allowed: score >= 75,
     score,
     quality,
     activityCategory: activityCategory(foundActivity),
     activityFocus: foundActivity,
     reasons: [`Source type: ${sourceType}`, ...reasons],
-    rejectReason: score < 55 ? "Quality score too low for automatic school candidate creation." : undefined,
+    rejectReason: score < 75 ? "Quality score too low for call-ready school candidate creation." : undefined,
   };
 }
 
@@ -694,6 +701,13 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
   const publicPhone = enrichment.publicPhone || snippetPhone;
   const contactPerson = enrichment.contactPerson;
   const contactRole = enrichment.contactRole || (publicEmail || publicPhone ? "Public school office/contact" : "");
+  const hasPublicContact = Boolean(publicEmail || publicPhone);
+
+  if ((target.org_type || "School") === "School" && !hasPublicContact) {
+    return null;
+  }
+
+  const callHook = hasPublicContact ? enrichment.callHook : "";
 
   return {
     org_name: orgName,
@@ -713,10 +727,12 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
     source_url_2: "",
     source_url_3: "",
     source_note: [
-      "AUTO-GENERATED PUBLIC-SOURCE CANDIDATE.",
+      "AUTO-GENERATED CALL-READY PUBLIC-SOURCE CANDIDATE.",
       "Human check required before conversion to a real lead.",
-      enrichment.callHook,
+      "Official school-owned website required. Directory-only sources are rejected.",
+      callHook,
       `Lead quality: ${quality.quality} (${quality.score}/100)`,
+      "Source confidence: official school-owned website with public contact detail.",
       `Source type: ${classifySource(result)}`,
       `Activity category: ${quality.activityCategory}`,
       `Activity focus: ${quality.activityFocus}`,
@@ -802,7 +818,7 @@ export const Route = createFileRoute("/api/lead-research")({
             skipped: 0,
             rejected_by_quality: rejectedByQuality,
             queries,
-            message: "No high-quality public-source school candidates found for this target.",
+            message: "No call-ready official school candidates found for this target.",
           });
         }
 
