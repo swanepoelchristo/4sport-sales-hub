@@ -540,6 +540,10 @@ type PublicContactEnrichment = {
   evidence: string;
   enrichmentUrl: string;
   callHook: string;
+  targetedContactFound: boolean;
+  directContactChannel: string;
+  generalEmail: string;
+  generalPhone: string;
 };
 
 function htmlToPlainText(html: string) {
@@ -576,7 +580,7 @@ function candidateUrlsForEnrichment(sourceUrl: string, website: string) {
     }
   }
 
-  return [...urls].slice(0, 5);
+  return [...urls].slice(0, 12);
 }
 
 async function fetchPublicText(url: string) {
@@ -622,22 +626,77 @@ function extractNameNearRole(line: string, role: string) {
   return match?.[1] || "";
 }
 
-function findRoleContact(text: string) {
+function extractPersonName(text: string) {
+  const cleaned = cleanText(text);
+
+  const titled = cleaned.match(/\b(Mr|Mrs|Ms|Miss|Dr)\.?\s+[A-Z](?:\.|[a-z]+)?\s+[A-Z][A-Za-z'-]+\b/i);
+  if (titled?.[0]) return titled[0].replace(/\s+/g, " ").trim();
+
+  const fullName = cleaned.match(/\b([A-Z][a-zA-Z.'-]+(?:\s+[A-Z][a-zA-Z.'-]+){1,3})\b/);
+  return fullName?.[1] || "";
+}
+
+function targetedRolePatterns(activityFocus: string) {
+  const activity = cleanText(activityFocus || "General School");
+  const escapedActivity = activity.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const patterns: { role: string; pattern: RegExp }[] = [];
+
+  if (activity && activity !== "General School" && activity !== "School Activities") {
+    patterns.push(
+      {
+        role: `Director of ${activity}`,
+        pattern: new RegExp(`\\b(director|head|co-?ordinator|coordinator|teacher|coach|mic)\\s+(of\\s+)?${escapedActivity}\\b`, "i"),
+      },
+      {
+        role: `${activity} Contact`,
+        pattern: new RegExp(`\\b${escapedActivity}\\s+(director|head|co-?ordinator|coordinator|teacher|coach|contact|mic)\\b`, "i"),
+      }
+    );
+  }
+
+  patterns.push(
+    { role: "Director of Sport", pattern: /\bdirector\s+of\s+sport\b/i },
+    { role: "Head of Sport", pattern: /\bhead\s+of\s+sport\b/i },
+    { role: "Deputy Headmaster – Sport", pattern: /\bdeputy\s+head(master)?\s*[-–—]?\s*sport\b/i },
+    { role: "Sports Coordinator", pattern: /\bsports?\s+co-?ordinator\b/i },
+    { role: "Extramural Coordinator", pattern: /\bextra[-\s]?mural\s+co-?ordinator\b/i },
+    { role: "Culture Coordinator", pattern: /\bculture\s+co-?ordinator\b/i },
+    { role: "Activities Coordinator", pattern: /\bactivities\s+co-?ordinator\b/i }
+  );
+
+  return patterns;
+}
+
+function findTargetedRoleContact(text: string, activityFocus: string) {
   const lines = text
     .split("\n")
     .map(cleanText)
-    .filter((line) => line.length > 8 && line.length < 260);
+    .filter((line) => line.length > 3 && line.length < 320);
 
-  for (const line of lines) {
-    for (const rolePattern of ROLE_PATTERNS) {
+  const patterns = targetedRolePatterns(activityFocus);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+
+    for (const rolePattern of patterns) {
       if (!rolePattern.pattern.test(line)) continue;
 
-      const person = extractNameNearRole(line, rolePattern.role);
+      const windowText = lines
+        .slice(Math.max(0, index - 4), Math.min(lines.length, index + 8))
+        .join(" | ");
+
+      const publicEmail = extractEmail(windowText);
+      const publicPhone = extractPhone(windowText);
+      const contactPerson = extractPersonName(windowText);
+
+      if (!publicEmail && !publicPhone) continue;
 
       return {
-        contactPerson: person,
+        contactPerson,
         contactRole: rolePattern.role,
-        evidence: line.slice(0, 240),
+        publicEmail,
+        publicPhone,
+        evidence: windowText.slice(0, 260),
       };
     }
   }
@@ -645,42 +704,57 @@ function findRoleContact(text: string) {
   return {
     contactPerson: "",
     contactRole: "",
+    publicEmail: "",
+    publicPhone: "",
     evidence: "",
   };
 }
 
-function buildCallHook(orgName: string, activityFocus: string, contactRole: string) {
+function buildCallHook(orgName: string, activityFocus: string, contactRole: string, contactPerson: string, channel: string) {
   const activity = activityFocus && activityFocus !== "General School"
     ? activityFocus
     : "school activities";
 
-  const roleLine = contactRole
-    ? ` I also saw a public ${contactRole} / activity contact reference.`
-    : "";
+  const personLine = contactPerson
+    ? `${contactPerson}, ${contactRole}`
+    : contactRole;
 
-  return `Call hook: Hi, I am calling from 4SPORT. I saw on your public school website that ${orgName} has ${activity} or organised school activities.${roleLine} We help schools manage registrations, parent consent, event documents, team/group communication, fixtures and activity admin in one place.`;
+  return `Call hook: Hi, I am contacting ${personLine} at ${orgName} about ${activity}. I found this public role contact on your official school website. 4SPORT helps schools manage registrations, parent consent, event documents, team/group communication, fixtures and activity admin in one place. Suggested route: ${channel}.`;
 }
 
 async function enrichPublicContact(sourceUrl: string, website: string, orgName: string, activityFocus: string) {
   const urls = candidateUrlsForEnrichment(sourceUrl, website);
 
+  let generalEmail = "";
+  let generalPhone = "";
+  let generalUrl = urls[0] || sourceUrl;
+
   for (const url of urls) {
     const text = await fetchPublicText(url);
     if (!text) continue;
 
-    const publicEmail = extractEmail(text);
-    const publicPhone = extractPhone(text);
-    const roleContact = findRoleContact(text);
+    if (!generalEmail) generalEmail = extractEmail(text);
+    if (!generalPhone) generalPhone = extractPhone(text);
 
-    if (publicEmail || publicPhone || roleContact.contactRole) {
+    const targeted = findTargetedRoleContact(text, activityFocus);
+
+    if (targeted.contactRole && (targeted.publicEmail || targeted.publicPhone)) {
+      const channel = targeted.publicPhone
+        ? "direct phone first"
+        : "email first; main school number only as fallback";
+
       return {
-        publicEmail,
-        publicPhone,
-        contactPerson: roleContact.contactPerson,
-        contactRole: roleContact.contactRole,
-        evidence: roleContact.evidence,
+        publicEmail: targeted.publicEmail,
+        publicPhone: targeted.publicPhone,
+        contactPerson: targeted.contactPerson,
+        contactRole: targeted.contactRole,
+        evidence: targeted.evidence,
         enrichmentUrl: url,
-        callHook: buildCallHook(orgName, activityFocus, roleContact.contactRole),
+        callHook: buildCallHook(orgName, activityFocus, targeted.contactRole, targeted.contactPerson, channel),
+        targetedContactFound: true,
+        directContactChannel: channel,
+        generalEmail,
+        generalPhone,
       } satisfies PublicContactEnrichment;
     }
   }
@@ -691,8 +765,12 @@ async function enrichPublicContact(sourceUrl: string, website: string, orgName: 
     contactPerson: "",
     contactRole: "",
     evidence: "",
-    enrichmentUrl: urls[0] || sourceUrl,
-    callHook: buildCallHook(orgName, activityFocus, ""),
+    enrichmentUrl: generalUrl,
+    callHook: "",
+    targetedContactFound: false,
+    directContactChannel: "not call-ready; only general school contact found",
+    generalEmail,
+    generalPhone,
   } satisfies PublicContactEnrichment;
 }
 
@@ -772,17 +850,22 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
   }
 
   const enrichment = await enrichPublicContact(sourceUrl, website, orgName, quality.activityFocus);
+
+  if ((target.org_type || "School") === "School" && !enrichment.targetedContactFound) {
+    return null;
+  }
+
   const publicEmail = enrichment.publicEmail || snippetEmail;
   const publicPhone = enrichment.publicPhone || snippetPhone;
   const contactPerson = enrichment.contactPerson;
-  const contactRole = enrichment.contactRole || (publicEmail || publicPhone ? "Public school office/contact" : "");
+  const contactRole = enrichment.contactRole;
   const hasPublicContact = Boolean(publicEmail || publicPhone);
 
   if ((target.org_type || "School") === "School" && !hasPublicContact) {
     return null;
   }
 
-  const callHook = hasPublicContact ? enrichment.callHook : "";
+  const callHook = enrichment.callHook;
 
   return {
     org_name: orgName,
@@ -805,14 +888,18 @@ async function resultToCandidate(result: BraveResult, query: string, target: Res
       "AUTO-GENERATED CALL-READY PUBLIC-SOURCE CANDIDATE.",
       "Human check required before conversion to a real lead.",
       "Official school-owned website required. Directory-only sources are rejected.",
+      "Targeted activity/sport contact required. General school switchboard alone is not call-ready.",
       callHook,
+      `Contact route: ${enrichment.directContactChannel}`,
       `Lead quality: ${quality.quality} (${quality.score}/100)`,
-      "Source confidence: official school-owned website with public contact detail.",
+      "Source confidence: official school-owned website with targeted public role contact.",
       `Source type: ${classifySource(result)}`,
       `Activity category: ${quality.activityCategory}`,
       `Activity focus: ${quality.activityFocus}`,
-      enrichment.publicPhone ? `Public phone found from official page: ${enrichment.publicPhone}` : "",
-      enrichment.publicEmail ? `Public email found from official page: ${enrichment.publicEmail}` : "",
+      enrichment.publicPhone ? `Targeted public phone found: ${enrichment.publicPhone}` : "",
+      enrichment.generalPhone ? `General school phone found but not used as target: ${enrichment.generalPhone}` : "",
+      enrichment.publicEmail ? `Targeted public email found: ${enrichment.publicEmail}` : "",
+      enrichment.generalEmail ? `General school email found but not used as target: ${enrichment.generalEmail}` : "",
       enrichment.contactRole ? `Public staff/activity role found: ${enrichment.contactRole}` : "",
       enrichment.contactPerson ? `Public contact person found: ${enrichment.contactPerson}` : "",
       enrichment.evidence ? `Public contact evidence: ${enrichment.evidence}` : "",
@@ -893,7 +980,7 @@ export const Route = createFileRoute("/api/lead-research")({
             skipped: 0,
             rejected_by_quality: rejectedByQuality,
             queries,
-            message: "No call-ready official school candidates found for this target.",
+            message: "No call-ready official school candidates with targeted role contact found for this target.",
           });
         }
 
