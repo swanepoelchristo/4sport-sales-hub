@@ -99,6 +99,63 @@ const ASSOCIATION_SIGNALS = [
   "board which promotes",
 ];
 
+const GOVERNMENT_SIGNALS = [
+  ".gov.za",
+  "education.gov.za",
+  "gauteng.gov.za",
+  "provincialgovernment.co.za",
+  "department of education",
+  "gauteng department education",
+  "gauteng department of education",
+  "provincial government",
+  "ministry of education",
+  "education department",
+];
+
+const DIRECTORY_SIGNALS = [
+  "directory",
+  "schools directory",
+  "school directory",
+  "list of schools",
+  "emis",
+  "schools4sa",
+  "schoolguide",
+  "schoolparrot",
+  "brabys",
+  "snupit",
+  "sayellow",
+  "yellosa",
+  "infobel",
+  "gauteng.co.za",
+  "zaubee",
+  "africabizinfo",
+];
+
+const GENERIC_TITLE_SIGNALS = [
+  "contact details",
+  "contact us",
+  "contacts",
+  "department education",
+  "gauteng department",
+  "provincial office",
+  "district office",
+  "regional office",
+];
+
+const INDIVIDUAL_SCHOOL_NAME_SIGNALS = [
+  "school",
+  "high school",
+  "primary school",
+  "preparatory school",
+  "college",
+  "academy",
+  "laerskool",
+  "hoërskool",
+  "hoerskool",
+  "skool",
+  "kollege",
+];
+
 const SCHOOL_SIGNALS = [
   "school",
   "high school",
@@ -131,6 +188,67 @@ function cleanText(value: unknown) {
 
 function lower(value: unknown) {
   return cleanText(value).toLowerCase();
+}
+
+function hostFromUrl(url: string) {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+type SourceType =
+  | "individual_school"
+  | "government_department"
+  | "directory"
+  | "association"
+  | "generic_contact"
+  | "unknown";
+
+function hasAny(text: string, signals: string[]) {
+  return signals.some((signal) => text.includes(signal));
+}
+
+function classifySource(result: BraveResult): SourceType {
+  const title = lower(result.title);
+  const url = lower(result.url);
+  const host = hostFromUrl(cleanText(result.url));
+  const description = lower(result.description);
+  const snippets = Array.isArray(result.extra_snippets)
+    ? result.extra_snippets.map(lower).join(" ")
+    : "";
+  const combined = [title, url, host, description, snippets].join(" ");
+
+  if (hasAny(combined, GOVERNMENT_SIGNALS) || host.endsWith(".gov.za")) {
+    return "government_department";
+  }
+
+  if (hasAny(combined, ASSOCIATION_SIGNALS)) {
+    return "association";
+  }
+
+  if (hasAny(combined, DIRECTORY_SIGNALS)) {
+    return "directory";
+  }
+
+  const genericOnlyTitle =
+    GENERIC_TITLE_SIGNALS.includes(title) ||
+    GENERIC_TITLE_SIGNALS.some((signal) => title === signal || title.startsWith(`${signal} -`));
+
+  if (genericOnlyTitle) {
+    return "generic_contact";
+  }
+
+  const titleLooksLikeSchool = hasAny(title, INDIVIDUAL_SCHOOL_NAME_SIGNALS);
+  const hostLooksLikeSchool = hasAny(host, ["school", "college", "academy", "laerskool", "hoerskool", "skool"]);
+  const textHasSchoolSignal = hasAny(combined, SCHOOL_SIGNALS);
+
+  if ((titleLooksLikeSchool || hostLooksLikeSchool) && textHasSchoolSignal) {
+    return "individual_school";
+  }
+
+  return "unknown";
 }
 
 function cleanOrgName(title: string) {
@@ -198,16 +316,19 @@ function buildQueries(target: Required<Pick<ResearchTarget, "province" | "org_ty
   const queries: string[] = [];
 
   if (orgType === "School") {
-    queries.push(`${place} school official website contact`);
-    queries.push(`${place} high school official website contact`);
-    queries.push(`${place} primary school official website contact`);
-    queries.push(`${place} school extramural activities contact`);
-    queries.push(`${place} school choir maths club robotics contact`);
+    const rejectTerms = "-department -government -directory -association -federation -sashoc";
+    queries.push(`${place} "High School" "Contact" official website ${rejectTerms}`);
+    queries.push(`${place} "Primary School" "Contact" official website ${rejectTerms}`);
+    queries.push(`${place} "College" "Contact" school official website ${rejectTerms}`);
+    queries.push(`${place} "Laerskool" "Kontak" ${rejectTerms}`);
+    queries.push(`${place} "Hoerskool" "Kontak" ${rejectTerms}`);
+    queries.push(`${place} school extramural activities contact ${rejectTerms}`);
+    queries.push(`${place} school choir maths club robotics contact ${rejectTerms}`);
 
     for (const activity of activities) {
       if (activity === "Other") continue;
-      queries.push(`${place} school ${activity} official website contact`);
-      queries.push(`${place} ${activity} school contact email`);
+      queries.push(`${place} school ${activity} official website contact ${rejectTerms}`);
+      queries.push(`${place} ${activity} "High School" contact ${rejectTerms}`);
     }
   } else {
     for (const activity of activities) {
@@ -226,11 +347,11 @@ function scoreResult(result: BraveResult, target: ResearchTarget): QualityResult
   const snippets = Array.isArray(result.extra_snippets) ? result.extra_snippets.map(cleanText).join(" ") : "";
   const combined = [title, sourceUrl, description, snippets].filter(Boolean).join(" ");
   const text = lower(combined);
+  const sourceType = classifySource(result);
 
   const reasons: string[] = [];
   let score = 0;
 
-  const hasAssociationSignal = ASSOCIATION_SIGNALS.some((signal) => text.includes(signal));
   const hasSchoolSignal = SCHOOL_SIGNALS.some((signal) => text.includes(signal));
   const hasContactSignal = CONTACT_SIGNALS.some((signal) => text.includes(signal));
   const hasEmail = Boolean(extractEmail(combined));
@@ -246,33 +367,21 @@ function scoreResult(result: BraveResult, target: ResearchTarget): QualityResult
     (text.includes("activities") ? "School Activities" : "") ||
     "General School";
 
-  if (target.org_type === "School" && hasAssociationSignal) {
-    return {
-      allowed: false,
-      score: 0,
-      quality: "Rejected",
-      activityCategory: "General",
-      activityFocus: foundActivity,
-      reasons: ["Association / federation / sport body detected"],
-      rejectReason: "Association or sport body, not a school lead.",
-    };
-  }
-
-  if (target.org_type === "School" && !hasSchoolSignal) {
+  if (target.org_type === "School" && sourceType !== "individual_school") {
     return {
       allowed: false,
       score: 0,
       quality: "Rejected",
       activityCategory: activityCategory(foundActivity),
       activityFocus: foundActivity,
-      reasons: ["No strong school signal found"],
-      rejectReason: "Result does not look like an actual school.",
+      reasons: [`Source type rejected: ${sourceType}`],
+      rejectReason: `Only individual school websites may be saved automatically. Source type was ${sourceType}.`,
     };
   }
 
   if (hasSchoolSignal) {
-    score += 40;
-    reasons.push("Looks like a real school");
+    score += 45;
+    reasons.push("Individual school proof found");
   }
 
   if (hasContactSignal) {
@@ -298,29 +407,24 @@ function scoreResult(result: BraveResult, target: ResearchTarget): QualityResult
     reasons.push("General school opportunity");
   }
 
-  if (/\/contact|contact-us|contacts|admissions|about/i.test(sourceUrl)) {
+  if (/\/contact|contact-us|contacts|admissions|about|kontak/i.test(sourceUrl)) {
     score += 10;
     reasons.push("Source URL looks like official contact/admissions page");
   }
 
-  if (hasAssociationSignal) {
-    score -= 30;
-    reasons.push("Association-style wording detected");
-  }
-
   const quality: QualityResult["quality"] =
-    score >= 70 ? "High" :
-    score >= 45 ? "Medium" :
+    score >= 75 ? "High" :
+    score >= 55 ? "Medium" :
     "Low";
 
   return {
-    allowed: score >= 40,
+    allowed: score >= 55,
     score,
     quality,
     activityCategory: activityCategory(foundActivity),
     activityFocus: foundActivity,
-    reasons,
-    rejectReason: score < 40 ? "Quality score too low for automatic candidate creation." : undefined,
+    reasons: [`Source type: ${sourceType}`, ...reasons],
+    rejectReason: score < 55 ? "Quality score too low for automatic school candidate creation." : undefined,
   };
 }
 
@@ -416,6 +520,7 @@ function resultToCandidate(result: BraveResult, query: string, target: ResearchT
       "AUTO-GENERATED PUBLIC-SOURCE CANDIDATE.",
       "Human check required before conversion to a real lead.",
       `Lead quality: ${quality.quality} (${quality.score}/100)`,
+      `Source type: ${classifySource(result)}`,
       `Activity category: ${quality.activityCategory}`,
       `Activity focus: ${quality.activityFocus}`,
       `Quality reasons: ${quality.reasons.join("; ")}`,
