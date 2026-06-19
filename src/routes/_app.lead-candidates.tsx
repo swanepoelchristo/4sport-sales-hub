@@ -27,6 +27,28 @@ const statusTone = (s: LeadCandidateStatus) => {
   return "neutral" as const;
 };
 
+const RESEARCH_ACTIVITIES = [
+  "Rugby",
+  "Athletics",
+  "Swimming",
+  "Hockey",
+  "Netball",
+  "Soccer",
+  "Cricket",
+  "Multi-sport",
+  "Choir",
+  "Drama",
+  "Debating",
+  "Music",
+  "Chess",
+  "Maths Club",
+  "Science Club",
+  "Robotics",
+  "Coding",
+  "Olympiad",
+  "General School",
+];
+
 const emptyForm = {
   org_name: "",
   org_type: "School" as OrgType,
@@ -57,7 +79,7 @@ function LeadCandidatesPage() {
     city: "",
     region: "",
     org_type: "School" as OrgType,
-    sports: ["Hockey", "Rugby", "Netball"] as Sport[],
+    sports: ["Hockey", "Rugby", "Netball", "Choir", "Maths Club", "Robotics", "General School"],
     max_results: 8,
   });
   const isAdmin = user?.role === "admin";
@@ -388,9 +410,9 @@ function LeadCandidatesPage() {
             </div>
 
             <div className="mt-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sports to research</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Activities to research</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {SPORTS.filter((sport) => sport !== "Other").map((sport) => {
+                {RESEARCH_ACTIVITIES.map((sport) => {
                   const active = researchTarget.sports.includes(sport);
                   return (
                     <button
@@ -400,7 +422,7 @@ function LeadCandidatesPage() {
                         const next = active
                           ? researchTarget.sports.filter((s) => s !== sport)
                           : [...researchTarget.sports, sport];
-                        setResearchTarget({ ...researchTarget, sports: next.length ? next : ["Other"] });
+                        setResearchTarget({ ...researchTarget, sports: next.length ? next : ["General School"] });
                       }}
                       className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                         active
