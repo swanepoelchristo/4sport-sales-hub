@@ -1025,9 +1025,15 @@ export const Route = createFileRoute("/api/lead-research")({
             .filter(Boolean)
         );
 
+        const refreshableCandidateStatuses = new Set(["needs_check", "checked_once"]);
+
         const toRefresh = allCandidates.filter((candidate) => {
-          const existing = existingCandidateByUrl.get(candidate.source_url_1);
-          return existing && !existingLeadUrls.has(candidate.source_url_1);
+          const existing = existingCandidateByUrl.get(candidate.source_url_1) as any;
+          return Boolean(
+            existing
+            && !existingLeadUrls.has(candidate.source_url_1)
+            && refreshableCandidateStatuses.has(existing.verification_status)
+          );
         });
 
         const toInsert = allCandidates.filter((candidate) => (
