@@ -428,6 +428,196 @@ function scoreResult(result: BraveResult, target: ResearchTarget): QualityResult
   };
 }
 
+
+const CONTACT_PAGE_PATHS = [
+  "/contact",
+  "/contact-us",
+  "/contacts",
+  "/about",
+  "/about-us",
+  "/admissions",
+  "/staff",
+  "/sport",
+  "/sports",
+  "/extramural",
+  "/extra-mural",
+];
+
+const ROLE_PATTERNS = [
+  { role: "Director of Sport", pattern: /\bdirector\s+of\s+sport\b/i },
+  { role: "Head of Sport", pattern: /\bhead\s+of\s+sport\b/i },
+  { role: "Sports Coordinator", pattern: /\bsports?\s+co-?ordinator\b/i },
+  { role: "Extramural Coordinator", pattern: /\bextra[-\s]?mural\s+co-?ordinator\b/i },
+  { role: "Culture Coordinator", pattern: /\bculture\s+co-?ordinator\b/i },
+  { role: "Choir Director", pattern: /\bchoir\s+(director|conductor|co-?ordinator)\b/i },
+  { role: "Robotics / Coding Contact", pattern: /\b(robotics|coding|computer\s+club)\b/i },
+  { role: "Maths Club Contact", pattern: /\b(maths?|mathematics)\s+(club|olympiad|contact|teacher)\b/i },
+];
+
+type PublicContactEnrichment = {
+  publicEmail: string;
+  publicPhone: string;
+  contactPerson: string;
+  contactRole: string;
+  evidence: string;
+  enrichmentUrl: string;
+  callHook: string;
+};
+
+function htmlToPlainText(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<(br|p|li|tr|div|section|article|h1|h2|h3|h4)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function candidateUrlsForEnrichment(sourceUrl: string, website: string) {
+  const urls = new Set<string>();
+
+  if (sourceUrl) urls.add(sourceUrl);
+
+  if (website) {
+    urls.add(website);
+
+    for (const path of CONTACT_PAGE_PATHS) {
+      try {
+        urls.add(new URL(path, website).toString());
+      } catch {
+        // ignore invalid URL construction
+      }
+    }
+  }
+
+  return [...urls].slice(0, 5);
+}
+
+async function fetchPublicText(url: string) {
+  if (!/^https?:\/\//i.test(url)) return "";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        Accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
+        "User-Agent": "4SPORT-public-lead-research/1.0",
+      },
+    });
+
+    if (!res.ok) return "";
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/html") && !contentType.includes("text/plain")) return "";
+
+    const html = await res.text();
+    return htmlToPlainText(html).slice(0, 40000);
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function extractNameNearRole(line: string, role: string) {
+  const cleaned = cleanText(line)
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, " ")
+    .replace(/(?:\+27|0)(?:\s|-|\.)?\d{2}(?:\s|-|\.)?\d{3}(?:\s|-|\.)?\d{4}/g, " ")
+    .replace(new RegExp(role.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"), " ")
+    .replace(/\b(director|head|sport|sports|coordinator|co-ordinator|extramural|extra mural|culture|choir|robotics|coding|maths|mathematics|teacher|contact|email|phone|tel)\b/ig, " ")
+    .replace(/[:|/\\,-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const match = cleaned.match(/\b([A-Z][a-zA-Z.'-]+(?:\s+[A-Z][a-zA-Z.'-]+){1,3})\b/);
+  return match?.[1] || "";
+}
+
+function findRoleContact(text: string) {
+  const lines = text
+    .split("\n")
+    .map(cleanText)
+    .filter((line) => line.length > 8 && line.length < 260);
+
+  for (const line of lines) {
+    for (const rolePattern of ROLE_PATTERNS) {
+      if (!rolePattern.pattern.test(line)) continue;
+
+      const person = extractNameNearRole(line, rolePattern.role);
+
+      return {
+        contactPerson: person,
+        contactRole: rolePattern.role,
+        evidence: line.slice(0, 240),
+      };
+    }
+  }
+
+  return {
+    contactPerson: "",
+    contactRole: "",
+    evidence: "",
+  };
+}
+
+function buildCallHook(orgName: string, activityFocus: string, contactRole: string) {
+  const activity = activityFocus && activityFocus !== "General School"
+    ? activityFocus
+    : "school activities";
+
+  const roleLine = contactRole
+    ? ` I also saw a public ${contactRole} / activity contact reference.`
+    : "";
+
+  return `Call hook: Hi, I am calling from 4SPORT. I saw on your public school website that ${orgName} has ${activity} or organised school activities.${roleLine} We help schools manage registrations, parent consent, event documents, team/group communication, fixtures and activity admin in one place.`;
+}
+
+async function enrichPublicContact(sourceUrl: string, website: string, orgName: string, activityFocus: string) {
+  const urls = candidateUrlsForEnrichment(sourceUrl, website);
+
+  for (const url of urls) {
+    const text = await fetchPublicText(url);
+    if (!text) continue;
+
+    const publicEmail = extractEmail(text);
+    const publicPhone = extractPhone(text);
+    const roleContact = findRoleContact(text);
+
+    if (publicEmail || publicPhone || roleContact.contactRole) {
+      return {
+        publicEmail,
+        publicPhone,
+        contactPerson: roleContact.contactPerson,
+        contactRole: roleContact.contactRole,
+        evidence: roleContact.evidence,
+        enrichmentUrl: url,
+        callHook: buildCallHook(orgName, activityFocus, roleContact.contactRole),
+      } satisfies PublicContactEnrichment;
+    }
+  }
+
+  return {
+    publicEmail: "",
+    publicPhone: "",
+    contactPerson: "",
+    contactRole: "",
+    evidence: "",
+    enrichmentUrl: urls[0] || sourceUrl,
+    callHook: buildCallHook(orgName, activityFocus, ""),
+  } satisfies PublicContactEnrichment;
+}
+
 async function getAdminUserId(request: Request) {
   const auth = request.headers.get("authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
@@ -484,7 +674,7 @@ async function braveSearch(query: string, apiKey: string, count: number) {
   return (json?.web?.results || []) as BraveResult[];
 }
 
-function resultToCandidate(result: BraveResult, query: string, target: ResearchTarget, userId: string) {
+async function resultToCandidate(result: BraveResult, query: string, target: ResearchTarget, userId: string) {
   const sourceUrl = cleanText(result.url);
   const title = cleanText(result.title);
   const description = cleanText(result.description);
@@ -493,11 +683,17 @@ function resultToCandidate(result: BraveResult, query: string, target: ResearchT
 
   const website = websiteFromUrl(sourceUrl);
   const orgName = cleanOrgName(title) || website.replace(/^https?:\/\//, "") || "Public source candidate";
-  const publicEmail = extractEmail(combined);
-  const publicPhone = extractPhone(combined);
+  const snippetEmail = extractEmail(combined);
+  const snippetPhone = extractPhone(combined);
   const quality = scoreResult(result, target);
 
   if (!quality.allowed) return null;
+
+  const enrichment = await enrichPublicContact(sourceUrl, website, orgName, quality.activityFocus);
+  const publicEmail = enrichment.publicEmail || snippetEmail;
+  const publicPhone = enrichment.publicPhone || snippetPhone;
+  const contactPerson = enrichment.contactPerson;
+  const contactRole = enrichment.contactRole || (publicEmail || publicPhone ? "Public school office/contact" : "");
 
   return {
     org_name: orgName,
@@ -507,8 +703,8 @@ function resultToCandidate(result: BraveResult, query: string, target: ResearchT
     region: target.region || "",
     sport_focus: sportFocusForCandidate(quality.activityFocus, target),
 
-    contact_person: "",
-    contact_role: publicEmail || publicPhone ? "Public admin/contact listed in source snippet" : "",
+    contact_person: contactPerson,
+    contact_role: contactRole,
     public_phone: publicPhone,
     public_email: publicEmail,
     website,
@@ -523,6 +719,13 @@ function resultToCandidate(result: BraveResult, query: string, target: ResearchT
       `Source type: ${classifySource(result)}`,
       `Activity category: ${quality.activityCategory}`,
       `Activity focus: ${quality.activityFocus}`,
+      enrichment.publicPhone ? `Public phone found from official page: ${enrichment.publicPhone}` : "",
+      enrichment.publicEmail ? `Public email found from official page: ${enrichment.publicEmail}` : "",
+      enrichment.contactRole ? `Public staff/activity role found: ${enrichment.contactRole}` : "",
+      enrichment.contactPerson ? `Public contact person found: ${enrichment.contactPerson}` : "",
+      enrichment.evidence ? `Public contact evidence: ${enrichment.evidence}` : "",
+      enrichment.enrichmentUrl ? `Public enrichment URL: ${enrichment.enrichmentUrl}` : "",
+      enrichment.callHook,
       `Quality reasons: ${quality.reasons.join("; ")}`,
       `Search query: ${query}`,
       title ? `Result title: ${title}` : "",
@@ -576,7 +779,7 @@ export const Route = createFileRoute("/api/lead-research")({
             if (!sourceUrl || seenUrls.has(sourceUrl)) continue;
             seenUrls.add(sourceUrl);
 
-            const candidate = resultToCandidate(result, query, target, admin.userId);
+            const candidate = await resultToCandidate(result, query, target, admin.userId);
 
             if (!candidate) {
               rejectedByQuality += 1;
