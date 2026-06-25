@@ -23,14 +23,14 @@ type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminO
 
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/leads", label: "Leads", icon: Building2 },
-  { to: "/lead-candidates", label: "Research Inbox", icon: ClipboardCheck },
-  { to: "/meetings", label: "Meetings", icon: Calendar },
-  { to: "/signups", label: "Signups", icon: Banknote },
-  { to: "/support", label: "Support", icon: Headset },
+  { to: "/leads", label: "Clients", icon: Building2 },
+  { to: "/lead-candidates", label: "New Enquiries", icon: ClipboardCheck },
+  { to: "/meetings", label: "Appointments", icon: Calendar },
+  { to: "/signups", label: "Payments", icon: Banknote },
+  { to: "/support", label: "Booking Requests", icon: Headset },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle, adminOnly: true },
-  { to: "/performance", label: "Performance", icon: BarChart3, adminOnly: true },
-  { to: "/reps", label: "Reps", icon: UserCog, adminOnly: true },
+  { to: "/performance", label: "Reports", icon: BarChart3, adminOnly: true },
+  { to: "/reps", label: "Stylists", icon: UserCog, adminOnly: true },
   { to: "/activity", label: "Activity", icon: History, adminOnly: true },
   { to: "/system-check", label: "System", icon: ShieldCheck, adminOnly: true },
 ];
@@ -56,7 +56,7 @@ export function AppLayout() {
           <Link to="/dashboard" className="flex items-center gap-3">
             <Logo className="h-9" />
             <span className="hidden text-xs font-semibold uppercase tracking-widest text-muted-foreground sm:inline">
-              Sales Rep Dashboard
+              Adele Salon AI
             </span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
@@ -121,7 +121,7 @@ export function AppLayout() {
       </nav>
 
       <footer className="border-t border-border bg-card/60 px-4 py-4 text-center text-xs text-muted-foreground">
-        © 2026 4SPORT. All rights reserved. Created by Milk Box AI.
+        © 2026 Adele Salon AI. Powered by Milk Box AI.
       </footer>
     </div>
   );
