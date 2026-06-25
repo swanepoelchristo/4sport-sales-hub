@@ -20,6 +20,7 @@ import {
   Scissors,
   IdCard,
   PlugZap,
+  CalendarCheck,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { to: "/client-cards", label: "Client Cards", icon: IdCard },
   { to: "/leads", label: "Clients", icon: Building2 },
   { to: "/services", label: "Services", icon: Scissors },
+  { to: "/booking-engine", label: "Booking Engine", icon: CalendarCheck },
   { to: "/connect", label: "MilkBox Connect", icon: PlugZap },
   { to: "/lead-candidates", label: "New Enquiries", icon: ClipboardCheck },
   { to: "/meetings", label: "Appointments", icon: Calendar },
