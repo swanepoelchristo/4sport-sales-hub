@@ -18,12 +18,14 @@ import {
   Headset,
   MessageCircle,
   Scissors,
+  IdCard,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/client-cards", label: "Client Cards", icon: IdCard },
   { to: "/leads", label: "Clients", icon: Building2 },
   { to: "/services", label: "Services", icon: Scissors },
   { to: "/lead-candidates", label: "New Enquiries", icon: ClipboardCheck },
