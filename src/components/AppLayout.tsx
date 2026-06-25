@@ -17,6 +17,7 @@ import {
   BarChart3,
   Headset,
   MessageCircle,
+  Scissors,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
@@ -24,6 +25,7 @@ type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminO
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/leads", label: "Clients", icon: Building2 },
+  { to: "/services", label: "Services", icon: Scissors },
   { to: "/lead-candidates", label: "New Enquiries", icon: ClipboardCheck },
   { to: "/meetings", label: "Appointments", icon: Calendar },
   { to: "/signups", label: "Payments", icon: Banknote },
