@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Scissors,
   IdCard,
+  PlugZap,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
@@ -28,6 +29,7 @@ const NAV: NavItem[] = [
   { to: "/client-cards", label: "Client Cards", icon: IdCard },
   { to: "/leads", label: "Clients", icon: Building2 },
   { to: "/services", label: "Services", icon: Scissors },
+  { to: "/connect", label: "MilkBox Connect", icon: PlugZap },
   { to: "/lead-candidates", label: "New Enquiries", icon: ClipboardCheck },
   { to: "/meetings", label: "Appointments", icon: Calendar },
   { to: "/signups", label: "Payments", icon: Banknote },
