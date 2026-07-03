@@ -2,7 +2,7 @@
 
 Correct access model:
 
-- Marianne: `fo@4sports.co.za`, role `admin`, full access.
+- Marianne: `info@4sports.co.za`, role `admin`, full access.
 - Christo/support: `support@4sports.co.za`, role `support`, full access equal to admin.
 - Sales reps: role `sales_rep`, limited to their own pipeline.
 - Call centre agents: role `call_center_agent`, limited to call-centre/research workflows.
