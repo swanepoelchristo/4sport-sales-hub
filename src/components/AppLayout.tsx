@@ -19,7 +19,9 @@ import {
   MessageCircle,
 } from "lucide-react";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; backOfficeOnly?: boolean };
+
+const BACK_OFFICE_ROLES = new Set(["admin", "support"]);
 
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,11 +30,11 @@ const NAV: NavItem[] = [
   { to: "/meetings", label: "Meetings", icon: Calendar },
   { to: "/signups", label: "Signups", icon: Banknote },
   { to: "/support", label: "Support", icon: Headset },
-  { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle, adminOnly: true },
-  { to: "/performance", label: "Performance", icon: BarChart3, adminOnly: true },
-  { to: "/reps", label: "Reps", icon: UserCog, adminOnly: true },
-  { to: "/activity", label: "Activity", icon: History, adminOnly: true },
-  { to: "/system-check", label: "System", icon: ShieldCheck, adminOnly: true },
+  { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle, backOfficeOnly: true },
+  { to: "/performance", label: "Performance", icon: BarChart3, backOfficeOnly: true },
+  { to: "/reps", label: "Reps", icon: UserCog, backOfficeOnly: true },
+  { to: "/activity", label: "Activity", icon: History, backOfficeOnly: true },
+  { to: "/system-check", label: "System", icon: ShieldCheck, backOfficeOnly: true },
 ];
 
 export function AppLayout() {
@@ -46,7 +48,8 @@ export function AppLayout() {
 
   if (!user) return null;
 
-  const items = NAV.filter((n) => !n.adminOnly || user.role === "admin");
+  const hasBackOfficeAccess = BACK_OFFICE_ROLES.has(user.role);
+  const items = NAV.filter((n) => !n.backOfficeOnly || hasBackOfficeAccess);
 
   return (
     <div className="min-h-screen brand-gradient-bg flex flex-col">
