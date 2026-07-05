@@ -8,8 +8,8 @@ type AccountRole = z.infer<typeof roleSchema>;
 const BACK_OFFICE_ROLES = ["admin", "support"] as const;
 
 const BACK_OFFICE_ACCOUNTS: Array<{ email: string; fullName: string; role: AccountRole }> = [
-  { email: "info@4sports.co.za", fullName: "Marianne", role: "admin" },
-  { email: "support@4sports.co.za", fullName: "Christo Support", role: "support" },
+  { email: "info@4sport.co.za", fullName: "Marianne", role: "admin" },
+  { email: "support@4sport.co.za", fullName: "Christo Support", role: "support" },
 ];
 
 async function requireBackOffice(userId: string) {
