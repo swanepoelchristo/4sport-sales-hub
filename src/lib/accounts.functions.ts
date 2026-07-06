@@ -4,15 +4,21 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const roleSchema = z.enum(["admin", "sales_rep"]);
+type AccountRole = z.infer<typeof roleSchema>;
+const BACK_OFFICE_ROLES = ["admin"] as const;
 
-async function requireAdmin(userId: string) {
+const BACK_OFFICE_ACCOUNTS: Array<{ email: string; fullName: string; role: AccountRole }> = [
+  { email: "info@4sport.co.za", fullName: "Marianne", role: "admin" },
+  { email: "support@4sport.co.za", fullName: "Christo", role: "admin" },
+];
+
+async function requireBackOffice(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (error || !data) throw new Error("Not authorised");
+    .in("role", BACK_OFFICE_ROLES as unknown as string[]);
+  if (error || !data?.length) throw new Error("Not authorised");
 }
 
 async function findAuthUser(email: string) {
@@ -28,17 +34,17 @@ async function findAuthUser(email: string) {
 }
 
 async function upsertLinkedRows(input: {
-  userId: string; email: string; fullName: string; role: "admin" | "sales_rep";
+  userId: string; email: string; fullName: string; role: AccountRole;
   phone?: string; province?: string; region?: string; sportFocus?: string; active?: boolean;
 }) {
   const { userId, email, fullName, role } = input;
   const [{ error: profileError }, { error: roleDeleteError }] = await Promise.all([
-    supabaseAdmin.from("profiles").upsert({ id: userId, email, full_name: fullName }),
+    supabaseAdmin.from("profiles").upsert({ id: userId, email, full_name: fullName, role } as any),
     supabaseAdmin.from("user_roles").delete().eq("user_id", userId),
   ]);
   if (profileError) throw profileError;
   if (roleDeleteError) throw roleDeleteError;
-  const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role });
+  const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role } as any);
   if (roleError) throw roleError;
 
   const { data: rep } = await supabaseAdmin.from("reps").select("id").eq("user_id", userId).maybeSingle();
@@ -49,8 +55,8 @@ async function upsertLinkedRows(input: {
     invitation_status: "accepted" as const,
   };
   const { error: repError } = rep
-    ? await supabaseAdmin.from("reps").update(row).eq("id", rep.id)
-    : await supabaseAdmin.from("reps").insert(row);
+    ? await supabaseAdmin.from("reps").update(row as any).eq("id", rep.id)
+    : await supabaseAdmin.from("reps").insert(row as any);
   if (repError) throw repError;
 }
 
@@ -59,27 +65,25 @@ export const bootstrapFirstAdmin = createServerFn({ method: "POST" })
     sendInvite: z.boolean().optional().default(true),
   }).parse(input))
   .handler(async ({ data }) => {
-    const { count, error: countError } = await supabaseAdmin
-      .from("user_roles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "admin");
-    if (countError) throw countError;
-    if ((count ?? 0) > 0) return { ok: true, message: "Admin already exists." };
-
-    const email = "swanepoelchristo00@gmail.com";
-    const existing = await findAuthUser(email);
-    const user = existing ?? (data.sendInvite
-      ? (await supabaseAdmin.auth.admin.inviteUserByEmail(email, { data: { full_name: "Christo", role: "admin" } })).data.user
-      : null);
-    if (!user) throw new Error("Could not create or invite first admin.");
-    await upsertLinkedRows({ userId: user.id, email, fullName: "Christo", role: "admin" });
-    return { ok: true, message: "First admin is linked and has admin role." };
+    for (const account of BACK_OFFICE_ACCOUNTS) {
+      let user = await findAuthUser(account.email);
+      if (!user && data.sendInvite) {
+        const invited = await supabaseAdmin.auth.admin.inviteUserByEmail(account.email, {
+          data: { full_name: account.fullName, role: account.role },
+        });
+        if (invited.error) throw invited.error;
+        user = invited.data.user;
+      }
+      if (!user) throw new Error(`Could not create or invite ${account.email}.`);
+      await upsertLinkedRows({ userId: user.id, email: account.email, fullName: account.fullName, role: account.role });
+    }
+    return { ok: true, message: "Back-office admin accounts are linked." };
   });
 
 export const listAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await requireAdmin(context.userId);
+    await requireBackOffice(context.userId);
     const { data, error } = await supabaseAdmin
       .from("reps")
       .select("*")
@@ -102,7 +106,7 @@ export const inviteAccount = createServerFn({ method: "POST" })
     active: z.boolean().optional().default(true),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireAdmin(context.userId);
+    await requireBackOffice(context.userId);
     const email = data.email.toLowerCase();
     let user = await findAuthUser(email);
     if (!user) {
@@ -118,8 +122,8 @@ export const inviteAccount = createServerFn({ method: "POST" })
       if (error) throw error;
     }
     await upsertLinkedRows({ userId: user.id, email, fullName: data.fullName, role: data.role, phone: data.phone, province: data.province, region: data.region, sportFocus: data.sportFocus, active: data.active });
-    await supabaseAdmin.from("account_invitations").upsert({ email, full_name: data.fullName, role: data.role, invited_by: context.userId, status: "pending", last_sent_at: new Date().toISOString() }, { onConflict: "email" });
-    await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.invite", detail: `Invited ${data.fullName} (${email})`, entity_type: "account" });
+    await supabaseAdmin.from("account_invitations").upsert({ email, full_name: data.fullName, role: data.role, invited_by: context.userId, status: "pending", last_sent_at: new Date().toISOString() } as any, { onConflict: "email" });
+    await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.invite", detail: `Invited ${data.fullName} (${email})`, entity_type: "account" });
     return { ok: true };
   });
 
@@ -127,12 +131,12 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ email: z.string().email().max(255) }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireAdmin(context.userId);
+    await requireBackOffice(context.userId);
     const email = data.email.toLowerCase();
     const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email);
     if (error) throw error;
     await supabaseAdmin.from("reps").update({ password_reset_sent_at: new Date().toISOString() }).eq("email", email);
-    await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.password_reset", detail: `Password reset sent to ${email}`, entity_type: "account" });
+    await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.password_reset", detail: `Password reset sent to ${email}`, entity_type: "account" });
     return { ok: true };
   });
 
@@ -140,7 +144,7 @@ export const resendInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ email: z.string().email().max(255) }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireAdmin(context.userId);
+    await requireBackOffice(context.userId);
     const email = data.email.toLowerCase();
     const existing = await findAuthUser(email);
     if (existing && existing.last_sign_in_at) {
@@ -151,7 +155,7 @@ export const resendInvite = createServerFn({ method: "POST" })
       if (error && !/already.*registered|exists/i.test(error.message)) throw error;
     }
     await supabaseAdmin.from("reps").update({ last_invite_sent_at: new Date().toISOString() }).eq("email", email);
-    await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.invite_resent", detail: `Re-sent invite to ${email}`, entity_type: "account" });
+    await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.invite_resent", detail: `Re-sent invite to ${email}`, entity_type: "account" });
     return { ok: true };
   });
 
@@ -168,7 +172,7 @@ export const updateAccount = createServerFn({ method: "POST" })
     active: z.boolean().optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireAdmin(context.userId);
+    await requireBackOffice(context.userId);
     const { data: rep, error: repErr } = await supabaseAdmin.from("reps").select("*").eq("id", data.repId).single();
     if (repErr || !rep) throw repErr ?? new Error("Rep not found");
 
@@ -186,13 +190,13 @@ export const updateAccount = createServerFn({ method: "POST" })
 
     if (data.role && rep.user_id && data.role !== rep.role) {
       await supabaseAdmin.from("user_roles").delete().eq("user_id", rep.user_id);
-      await supabaseAdmin.from("user_roles").insert({ user_id: rep.user_id, role: data.role });
-      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.role_assigned", detail: `${rep.email} -> ${data.role}`, entity_type: "account" });
+      await supabaseAdmin.from("user_roles").insert({ user_id: rep.user_id, role: data.role } as any);
+      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.role_assigned", detail: `${rep.email} -> ${data.role}`, entity_type: "account" });
     }
     if (data.active === false && rep.active) {
-      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.deactivated", detail: `Deactivated ${rep.email}`, entity_type: "account" });
+      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.deactivated", detail: `Deactivated ${rep.email}`, entity_type: "account" });
     } else if (data.active === true && !rep.active) {
-      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Admin", action: "account.activated", detail: `Activated ${rep.email}`, entity_type: "account" });
+      await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.activated", detail: `Activated ${rep.email}`, entity_type: "account" });
     }
     return { ok: true };
   });
