@@ -21,8 +21,6 @@ import {
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; backOfficeOnly?: boolean };
 
-const BACK_OFFICE_ROLES = new Set(["admin", "support"]);
-
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/impact", label: "Impact", icon: Globe2, backOfficeOnly: true },
@@ -49,7 +47,7 @@ export function AppLayout() {
 
   if (!user) return null;
 
-  const hasBackOfficeAccess = BACK_OFFICE_ROLES.has(user.role);
+  const hasBackOfficeAccess = user.role === "admin";
   const items = NAV.filter((n) => !n.backOfficeOnly || hasBackOfficeAccess);
 
   return (
