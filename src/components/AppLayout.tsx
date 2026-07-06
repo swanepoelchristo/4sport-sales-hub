@@ -5,7 +5,6 @@ import { Logo } from "./Logo";
 import { IdleTimer } from "./IdleTimer";
 import {
   LayoutDashboard,
-  Users,
   Calendar,
   Building2,
   ClipboardCheck,
@@ -17,6 +16,7 @@ import {
   BarChart3,
   Headset,
   MessageCircle,
+  Globe2,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; backOfficeOnly?: boolean };
@@ -25,6 +25,7 @@ const BACK_OFFICE_ROLES = new Set(["admin", "support"]);
 
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/impact", label: "Impact", icon: Globe2, backOfficeOnly: true },
   { to: "/leads", label: "Leads", icon: Building2 },
   { to: "/lead-candidates", label: "Research Inbox", icon: ClipboardCheck },
   { to: "/meetings", label: "Meetings", icon: Calendar },
