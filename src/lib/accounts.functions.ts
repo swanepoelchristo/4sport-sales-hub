@@ -3,13 +3,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const roleSchema = z.enum(["admin", "support", "sales_rep"]);
+const roleSchema = z.enum(["admin", "sales_rep"]);
 type AccountRole = z.infer<typeof roleSchema>;
-const BACK_OFFICE_ROLES = ["admin", "support"] as const;
+const BACK_OFFICE_ROLES = ["admin"] as const;
 
 const BACK_OFFICE_ACCOUNTS: Array<{ email: string; fullName: string; role: AccountRole }> = [
   { email: "info@4sport.co.za", fullName: "Marianne", role: "admin" },
-  { email: "support@4sport.co.za", fullName: "Christo Support", role: "support" },
+  { email: "support@4sport.co.za", fullName: "Christo", role: "admin" },
 ];
 
 async function requireBackOffice(userId: string) {
@@ -77,7 +77,7 @@ export const bootstrapFirstAdmin = createServerFn({ method: "POST" })
       if (!user) throw new Error(`Could not create or invite ${account.email}.`);
       await upsertLinkedRows({ userId: user.id, email: account.email, fullName: account.fullName, role: account.role });
     }
-    return { ok: true, message: "Back-office admin/support accounts are linked." };
+    return { ok: true, message: "Back-office admin accounts are linked." };
   });
 
 export const listAccounts = createServerFn({ method: "GET" })
