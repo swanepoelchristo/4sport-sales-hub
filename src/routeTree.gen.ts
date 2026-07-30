@@ -32,6 +32,7 @@ import { Route as AppPerformanceRouteImport } from './routes/_app.performance'
 import { Route as AppMeetingsRouteImport } from './routes/_app.meetings'
 import { Route as AppLeadsRouteImport } from './routes/_app.leads'
 import { Route as AppLeadCandidatesRouteImport } from './routes/_app.lead-candidates'
+import { Route as AppImpactRouteImport } from './routes/_app.impact'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppActivityRouteImport } from './routes/_app.activity'
 import { Route as AppLeadsNewRouteImport } from './routes/_app.leads_.new'
@@ -152,6 +153,11 @@ const AppLeadCandidatesRoute = AppLeadCandidatesRouteImport.update({
   path: '/lead-candidates',
   getParentRoute: () => AppRoute,
 } as any)
+const AppImpactRoute = AppImpactRouteImport.update({
+  id: '/impact',
+  path: '/impact',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -186,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
+  '/impact': typeof AppImpactRoute
   '/lead-candidates': typeof AppLeadCandidatesRoute
   '/leads': typeof AppLeadsRouteWithChildren
   '/meetings': typeof AppMeetingsRoute
@@ -214,6 +221,7 @@ export interface FileRoutesByTo {
   '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/activity': typeof AppActivityRoute
   '/dashboard': typeof AppDashboardRoute
+  '/impact': typeof AppImpactRoute
   '/lead-candidates': typeof AppLeadCandidatesRoute
   '/leads': typeof AppLeadsRouteWithChildren
   '/meetings': typeof AppMeetingsRoute
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/terms-and-conditions': typeof TermsAndConditionsRoute
   '/_app/activity': typeof AppActivityRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/impact': typeof AppImpactRoute
   '/_app/lead-candidates': typeof AppLeadCandidatesRoute
   '/_app/leads': typeof AppLeadsRouteWithChildren
   '/_app/meetings': typeof AppMeetingsRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/terms-and-conditions'
     | '/activity'
     | '/dashboard'
+    | '/impact'
     | '/lead-candidates'
     | '/leads'
     | '/meetings'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/terms-and-conditions'
     | '/activity'
     | '/dashboard'
+    | '/impact'
     | '/lead-candidates'
     | '/leads'
     | '/meetings'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/terms-and-conditions'
     | '/_app/activity'
     | '/_app/dashboard'
+    | '/_app/impact'
     | '/_app/lead-candidates'
     | '/_app/leads'
     | '/_app/meetings'
@@ -527,6 +539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLeadCandidatesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/impact': {
+      id: '/_app/impact'
+      path: '/impact'
+      fullPath: '/impact'
+      preLoaderRoute: typeof AppImpactRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -573,6 +592,7 @@ const AppLeadsRouteWithChildren = AppLeadsRoute._addFileChildren(
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppImpactRoute: typeof AppImpactRoute
   AppLeadCandidatesRoute: typeof AppLeadCandidatesRoute
   AppLeadsRoute: typeof AppLeadsRouteWithChildren
   AppMeetingsRoute: typeof AppMeetingsRoute
@@ -588,6 +608,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppImpactRoute: AppImpactRoute,
   AppLeadCandidatesRoute: AppLeadCandidatesRoute,
   AppLeadsRoute: AppLeadsRouteWithChildren,
   AppMeetingsRoute: AppMeetingsRoute,

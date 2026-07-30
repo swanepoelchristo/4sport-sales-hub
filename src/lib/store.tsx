@@ -414,7 +414,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const rep = repRows?.[0] ?? null;
     const agent = agentRows?.[0] ?? null;
     const roleList = roles ?? [];
-    const profileRole = profile.role as Role;
+    const profileRole = (profile as any).role as Role;
     const hasRole = (role: string) => roleList.some((r: any) => r.role === role);
     const role: Role = hasRole("admin")
       ? "admin"

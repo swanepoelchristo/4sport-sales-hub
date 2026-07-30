@@ -17,7 +17,7 @@ async function requireBackOffice(userId: string) {
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .in("role", BACK_OFFICE_ROLES as unknown as string[]);
+    .in("role", BACK_OFFICE_ROLES);
   if (error || !data?.length) throw new Error("Not authorised");
 }
 
