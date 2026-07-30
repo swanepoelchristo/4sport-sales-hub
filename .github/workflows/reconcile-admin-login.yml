@@ -1,0 +1,113 @@
+name: Reconcile admin login branch
+
+on:
+  push:
+    branches:
+      - reconcile/admin-login
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out reconciliation branch
+        uses: actions/checkout@v4
+        with:
+          ref: reconcile/admin-login
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Apply tested reconciliation fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          accounts = Path('src/lib/accounts.functions.ts')
+          text = accounts.read_text()
+          old = 'BACK_OFFICE_ROLES as unknown as string[]'
+          if old in text:
+              text = text.replace(old, 'BACK_OFFICE_ROLES')
+          accounts.write_text(text)
+
+          store = Path('src/lib/store.tsx')
+          text = store.read_text()
+          old = 'const profileRole = profile.role as Role;'
+          if old in text:
+              text = text.replace(old, 'const profileRole = (profile as any).role as Role;')
+          store.write_text(text)
+
+          candidates = Path('src/routes/_app.lead-candidates.tsx')
+          text = candidates.read_text()
+
+          helpers = [
+              ('SafetyCard', 'CandidateCard'),
+              ('ActionButton', 'Input'),
+              ('Input', 'Select'),
+              ('Select', 'Info'),
+              ('Info', None),
+          ]
+
+          block = re.compile(
+              r'\n  const sourceNoteLines = .*?\n  const sourceConfidence = noteValue\("Source confidence:"\);\n',
+              re.S,
+          )
+
+          for name, next_name in helpers:
+              start_token = f'function {name}('
+              start = text.find(start_token)
+              if start == -1:
+                  raise SystemExit(f'Missing helper function: {name}')
+              end = text.find(f'function {next_name}(', start + len(start_token)) if next_name else len(text)
+              if next_name and end == -1:
+                  raise SystemExit(f'Missing next helper function: {next_name}')
+              segment = text[start:end]
+              cleaned, count = block.subn('\n', segment, count=1)
+              if count:
+                  text = text[:start] + cleaned + text[end:]
+
+          candidates.write_text(text)
+          PY
+
+      - name: Regenerate TanStack route tree
+        run: bunx @tanstack/router-cli generate
+
+      - name: Verify repaired app builds
+        run: bun run build
+
+      - name: Verify targeted TypeScript issues are gone
+        shell: bash
+        run: |
+          set +e
+          bunx tsc --noEmit > /tmp/tsc.log 2>&1
+          set -e
+          if grep -E 'accounts\.functions|store\.tsx|_app\.impact|_app\.lead-candidates' /tmp/tsc.log; then
+            echo 'Targeted reconciliation TypeScript errors remain.'
+            exit 1
+          fi
+
+      - name: Verify patch cleanliness
+        run: git diff --check
+
+      - name: Commit reconciliation result
+        shell: bash
+        run: |
+          git config user.name 'Christo'
+          git config user.email '217704679+swanepoelchristo@users.noreply.github.com'
+          git add src/lib/accounts.functions.ts src/lib/store.tsx src/routeTree.gen.ts src/routes/_app.lead-candidates.tsx
+          if git diff --cached --quiet; then
+            echo 'No reconciliation changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Repair admin login branch and route generation'
+          git push origin HEAD:reconcile/admin-login
