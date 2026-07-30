@@ -2,22 +2,22 @@ name: Remove legacy support-role fallback
 
 on:
   pull_request:
-    types: [edited]
+    types: [opened]
     branches:
-      - main
+      - reconcile/admin-login
 
 permissions:
   contents: write
 
 jobs:
   cleanup:
-    if: github.event.pull_request.head.ref == 'reconcile/admin-login'
+    if: github.event.pull_request.head.ref == 'cleanup/remove-legacy-support-role'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out reconciliation branch
+      - name: Check out cleanup branch
         uses: actions/checkout@v4
         with:
-          ref: reconcile/admin-login
+          ref: cleanup/remove-legacy-support-role
           fetch-depth: 0
 
       - name: Set up Bun
@@ -77,4 +77,4 @@ jobs:
           git add src/lib/store.tsx
           git rm .github/workflows/cleanup-legacy-support-role.yml
           git commit -m 'Remove legacy support role fallback'
-          git push origin HEAD:reconcile/admin-login
+          git push origin HEAD:cleanup/remove-legacy-support-role
