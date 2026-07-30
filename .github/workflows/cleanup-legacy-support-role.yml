@@ -1,0 +1,80 @@
+name: Remove legacy support-role fallback
+
+on:
+  pull_request:
+    types: [edited]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.ref == 'reconcile/admin-login'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out reconciliation branch
+        uses: actions/checkout@v4
+        with:
+          ref: reconcile/admin-login
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Remove legacy support-role fallback
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/store.tsx')
+          text = p.read_text()
+          old = '''    const role: Role = hasRole("admin")
+      ? "admin"
+      : hasRole("support") || (profile as any).role === "support"
+        ? ("support" as Role)
+        : profileRole === "call_center_agent"
+          ? "call_center_agent"
+          : "sales_rep";'''
+          new = '''    const role: Role = hasRole("admin")
+      ? "admin"
+      : profileRole === "call_center_agent"
+        ? "call_center_agent"
+        : "sales_rep";'''
+          if old not in text:
+              raise SystemExit('Expected legacy support-role block not found')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Verify production build
+        run: bun run build
+
+      - name: Verify targeted TypeScript issues are gone
+        shell: bash
+        run: |
+          set +e
+          bunx tsc --noEmit > /tmp/tsc.log 2>&1
+          set -e
+          if grep -E 'accounts\.functions|store\.tsx|_app\.impact|_app\.lead-candidates' /tmp/tsc.log; then
+            echo 'Targeted reconciliation TypeScript errors remain.'
+            exit 1
+          fi
+
+      - name: Verify patch cleanliness
+        run: git diff --check
+
+      - name: Commit cleanup and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name 'Christo'
+          git config user.email '217704679+swanepoelchristo@users.noreply.github.com'
+          git add src/lib/store.tsx
+          git rm .github/workflows/cleanup-legacy-support-role.yml
+          git commit -m 'Remove legacy support role fallback'
+          git push origin HEAD:reconcile/admin-login
