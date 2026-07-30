@@ -61,10 +61,12 @@ async function upsertLinkedRows(input: {
 }
 
 export const bootstrapFirstAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({
     sendInvite: z.boolean().optional().default(true),
   }).parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await requireBackOffice(context.userId);
     for (const account of BACK_OFFICE_ACCOUNTS) {
       let user = await findAuthUser(account.email);
       if (!user && data.sendInvite) {
