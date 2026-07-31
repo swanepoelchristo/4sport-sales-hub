@@ -17,6 +17,7 @@ import {
   BarChart3,
   Headset,
   MessageCircle,
+  Megaphone,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; adminOnly?: boolean };
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { to: "/signups", label: "Signups", icon: Banknote },
   { to: "/support", label: "Support", icon: Headset },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle, adminOnly: true },
+  { to: "/marketing", label: "Marketing", icon: Megaphone, adminOnly: true },
   { to: "/performance", label: "Performance", icon: BarChart3, adminOnly: true },
   { to: "/reps", label: "Reps", icon: UserCog, adminOnly: true },
   { to: "/activity", label: "Activity", icon: History, adminOnly: true },
