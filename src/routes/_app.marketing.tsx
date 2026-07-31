@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BarChart3, Copy, Megaphone, Plus } from "lucide-react";
 import { PageHeader, Section, EmptyState } from "@/components/ui-bits";
 import { useStore } from "@/lib/store";
@@ -243,7 +243,7 @@ function MarketingPage() {
   );
 }
 
-function Metric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">{icon}{label}</div>
@@ -252,7 +252,7 @@ function Metric({ label, value, icon }: { label: string; value: string; icon: Re
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="space-y-1.5">
       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
