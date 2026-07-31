@@ -5,6 +5,7 @@ export type MarketingCampaignStatus = "draft" | "testing" | "active" | "paused" 
 
 export interface MarketingCampaign {
   id: string;
+  campaign_code: string;
   name: string;
   objective: MarketingObjective;
   audience: MarketingAudience;
@@ -13,7 +14,9 @@ export interface MarketingCampaign {
   status: MarketingCampaignStatus;
   landing_path: string;
   external_campaign_id?: string | null;
+  created_by?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface MarketingCreative {
