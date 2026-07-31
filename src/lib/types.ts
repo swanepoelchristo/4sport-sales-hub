@@ -168,6 +168,17 @@ export interface Lead {
   last_call_note: string;
   last_contacted_at: string | null;
 
+  // Marketing attribution is optional/additive and does not change existing lead workflow.
+  marketing_campaign_id?: string;
+  marketing_creative_id?: string;
+  marketing_campaign_code?: string;
+  marketing_creative_code?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  landing_path?: string;
+
   assigned_rep_id: string;
   status: LeadStatus;
   notes: string;
