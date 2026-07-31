@@ -17,6 +17,7 @@ import {
   Headset,
   MessageCircle,
   Globe2,
+  Megaphone,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; backOfficeOnly?: boolean };
@@ -30,6 +31,7 @@ const NAV: NavItem[] = [
   { to: "/signups", label: "Signups", icon: Banknote },
   { to: "/support", label: "Support", icon: Headset },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle, backOfficeOnly: true },
+  { to: "/marketing", label: "Marketing", icon: Megaphone, backOfficeOnly: true },
   { to: "/performance", label: "Performance", icon: BarChart3, backOfficeOnly: true },
   { to: "/reps", label: "Reps", icon: UserCog, backOfficeOnly: true },
   { to: "/activity", label: "Activity", icon: History, backOfficeOnly: true },
