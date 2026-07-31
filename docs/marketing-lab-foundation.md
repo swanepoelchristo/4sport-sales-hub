@@ -19,28 +19,38 @@ Campaign -> Creative -> tracked Factory URL -> Lead -> Meeting -> Signup -> Paid
 
 Until this chain works, do not build autonomous ad buying or a large AI creative suite.
 
-## Foundation added in this branch
+## Foundation now in this branch
 
-`src/lib/marketing.ts` adds small shared primitives for:
+`src/lib/marketing.ts` provides the campaign/creative types, stable campaign codes and tracked Factory URL builder.
 
-- campaign metadata
-- creative metadata
-- campaign/creative attribution
-- stable 4SPORT campaign codes
-- UTM-tagged Factory landing URLs
+`supabase/migrations/20260731090000_marketing_lab_attribution.sql` adds:
 
-This is deliberately database-independent so the foundation can be merged without touching the working Sales Hub data model.
+- `marketing_campaigns`
+- `marketing_creatives`
+- optional attribution columns on existing `leads`
+- admin-only RLS for the new marketing tables
+
+`src/routes/_app.marketing.tsx` adds an admin-only Marketing Lab screen that can:
+
+- create a draft campaign
+- define objective, audience, message angle, budget and Factory landing page
+- generate a stable campaign code
+- copy a Meta-ready UTM-tagged Factory link
+
+`src/components/AppLayout.tsx` exposes Marketing as an admin navigation item.
+
+## Current boundary
+
+This branch deliberately stops before changing the working lead workflow. The database can now store campaign attribution, but the public Factory CTA still uses email and does not yet capture UTM attribution into Sales Hub automatically.
 
 ## Next safe changes
 
-1. Add additive Supabase tables for `marketing_campaigns`, `marketing_creatives`, and `marketing_results`.
-2. Add nullable attribution columns to `leads` (`marketing_campaign_id`, `marketing_creative_id`, UTM source/medium/campaign/content).
-3. Add an admin-only Marketing route in Sales Hub.
-4. Create campaigns and tracked Factory links manually from that route.
-5. Capture attribution when a prospect enters Sales Hub.
-6. Join campaign data to the existing lead -> meeting -> signup pipeline.
-7. Only then add AI campaign generation and AI performance recommendations.
-8. Add Meta results sync and Conversions API after the attribution loop is proven.
+1. Capture UTM values on the 4SPORT Factory landing page.
+2. Carry those values into a real demo/enquiry submission instead of losing them in the current mailto flow.
+3. Create/update the Sales Hub lead with campaign + creative attribution.
+4. Show campaign -> lead -> meeting -> signup conversion in Marketing Lab.
+5. Only then add AI campaign generation and AI performance recommendations.
+6. Add Meta results sync and Conversions API after the attribution loop is proven.
 
 ## V1 guardrails
 
