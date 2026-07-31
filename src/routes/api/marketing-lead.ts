@@ -8,6 +8,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:5173",
 ]);
 
+const ORG_TYPES = new Set(["School", "Club", "Academy", "Other"]);
+
 function corsHeaders(request: Request) {
   const origin = request.headers.get("origin") ?? "";
   return {
@@ -49,17 +51,20 @@ export const Route = createFileRoute("/api/marketing-lead")({
             return json(request, { error: "Organisation and either email or phone are required." }, 400);
           }
 
+          const requestedOrgType = clean(payload.org_type, 40) || "School";
+          const orgType = ORG_TYPES.has(requestedOrgType) ? requestedOrgType : "Other";
           const campaignCode = clean(payload.utm_campaign ?? payload.marketing_campaign_code, 120);
           const creativeCode = clean(payload.utm_content ?? payload.marketing_creative_code, 120);
           const utmSource = clean(payload.utm_source, 80);
           const utmMedium = clean(payload.utm_medium, 80);
           const landingPath = clean(payload.landing_path, 240);
+          const admin = supabaseAdmin as any;
 
           let marketingCampaignId: string | null = null;
           let marketingCreativeId: string | null = null;
 
           if (campaignCode) {
-            const { data: campaign } = await supabaseAdmin
+            const { data: campaign } = await admin
               .from("marketing_campaigns")
               .select("id")
               .eq("campaign_code", campaignCode)
@@ -68,7 +73,7 @@ export const Route = createFileRoute("/api/marketing-lead")({
           }
 
           if (marketingCampaignId && creativeCode) {
-            const { data: creative } = await supabaseAdmin
+            const { data: creative } = await admin
               .from("marketing_creatives")
               .select("id")
               .eq("campaign_id", marketingCampaignId)
@@ -85,11 +90,11 @@ export const Route = createFileRoute("/api/marketing-lead")({
             .filter(Boolean)
             .join("\n");
 
-          const { data: lead, error } = await supabaseAdmin
+          const { data: lead, error } = await admin
             .from("leads")
             .insert({
               org_name: orgName,
-              org_type: clean(payload.org_type, 40) || "School",
+              org_type: orgType,
               province: clean(payload.province, 80),
               city: clean(payload.city, 100),
               region: clean(payload.region, 100),
