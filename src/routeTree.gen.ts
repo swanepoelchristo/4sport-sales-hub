@@ -30,6 +30,7 @@ import { Route as AppSignupsRouteImport } from './routes/_app.signups'
 import { Route as AppRepsRouteImport } from './routes/_app.reps'
 import { Route as AppPerformanceRouteImport } from './routes/_app.performance'
 import { Route as AppMeetingsRouteImport } from './routes/_app.meetings'
+import { Route as AppMarketingRouteImport } from './routes/_app.marketing'
 import { Route as AppLeadsRouteImport } from './routes/_app.leads'
 import { Route as AppLeadCandidatesRouteImport } from './routes/_app.lead-candidates'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -142,6 +143,11 @@ const AppMeetingsRoute = AppMeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMarketingRoute = AppMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLeadsRoute = AppLeadsRouteImport.update({
   id: '/leads',
   path: '/leads',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/lead-candidates': typeof AppLeadCandidatesRoute
   '/leads': typeof AppLeadsRouteWithChildren
+  '/marketing': typeof AppMarketingRoute
   '/meetings': typeof AppMeetingsRoute
   '/performance': typeof AppPerformanceRoute
   '/reps': typeof AppRepsRoute
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/lead-candidates': typeof AppLeadCandidatesRoute
   '/leads': typeof AppLeadsRouteWithChildren
+  '/marketing': typeof AppMarketingRoute
   '/meetings': typeof AppMeetingsRoute
   '/performance': typeof AppPerformanceRoute
   '/reps': typeof AppRepsRoute
@@ -246,6 +254,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/lead-candidates': typeof AppLeadCandidatesRoute
   '/_app/leads': typeof AppLeadsRouteWithChildren
+  '/_app/marketing': typeof AppMarketingRoute
   '/_app/meetings': typeof AppMeetingsRoute
   '/_app/performance': typeof AppPerformanceRoute
   '/_app/reps': typeof AppRepsRoute
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/lead-candidates'
     | '/leads'
+    | '/marketing'
     | '/meetings'
     | '/performance'
     | '/reps'
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/lead-candidates'
     | '/leads'
+    | '/marketing'
     | '/meetings'
     | '/performance'
     | '/reps'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/lead-candidates'
     | '/_app/leads'
+    | '/_app/marketing'
     | '/_app/meetings'
     | '/_app/performance'
     | '/_app/reps'
@@ -513,6 +525,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMeetingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/marketing': {
+      id: '/_app/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof AppMarketingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/leads': {
       id: '/_app/leads'
       path: '/leads'
@@ -575,6 +594,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppLeadCandidatesRoute: typeof AppLeadCandidatesRoute
   AppLeadsRoute: typeof AppLeadsRouteWithChildren
+  AppMarketingRoute: typeof AppMarketingRoute
   AppMeetingsRoute: typeof AppMeetingsRoute
   AppPerformanceRoute: typeof AppPerformanceRoute
   AppRepsRoute: typeof AppRepsRoute
@@ -590,6 +610,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppLeadCandidatesRoute: AppLeadCandidatesRoute,
   AppLeadsRoute: AppLeadsRouteWithChildren,
+  AppMarketingRoute: AppMarketingRoute,
   AppMeetingsRoute: AppMeetingsRoute,
   AppPerformanceRoute: AppPerformanceRoute,
   AppRepsRoute: AppRepsRoute,
