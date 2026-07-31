@@ -418,11 +418,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const hasRole = (role: string) => roleList.some((r: any) => r.role === role);
     const role: Role = hasRole("admin")
       ? "admin"
-      : hasRole("support") || (profile as any).role === "support"
-        ? ("support" as Role)
-        : profileRole === "call_center_agent"
-          ? "call_center_agent"
-          : "sales_rep";
+      : profileRole === "call_center_agent"
+        ? "call_center_agent"
+        : "sales_rep";
 
     return {
       id: role === "call_center_agent" ? agent?.id ?? "" : rep?.id ?? "",
