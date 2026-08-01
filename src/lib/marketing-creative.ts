@@ -45,8 +45,20 @@ export interface MarketingCreativeProvider {
 
 const MAX_SOURCE_CHARS = 12_000;
 
+const CREATIVE_LIMITS = {
+  name: 120,
+  headline: 80,
+  primaryText: 500,
+  callToAction: 40,
+  rationale: 500,
+} as const;
+
 function compact(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function compactAndLimit(value: string, max: number) {
+  return compact(value).slice(0, max);
 }
 
 export function sanitiseApprovedWebsiteContent(
@@ -114,15 +126,18 @@ export function validateCreativeDraft(
 
   return {
     ...draft,
-    name: compact(draft.name),
-    headline: compact(draft.headline),
-    primaryText: compact(draft.primaryText),
-    callToAction: compact(draft.callToAction || brief.callToAction),
+    name: compactAndLimit(draft.name, CREATIVE_LIMITS.name),
+    headline: compactAndLimit(draft.headline, CREATIVE_LIMITS.headline),
+    primaryText: compactAndLimit(draft.primaryText, CREATIVE_LIMITS.primaryText),
+    callToAction: compactAndLimit(
+      draft.callToAction || brief.callToAction,
+      CREATIVE_LIMITS.callToAction,
+    ),
     audience: brief.audience,
     angle: brief.angle,
     landingPath: brief.landingPath,
     assetType: brief.assetType,
     sourcePages: validSources,
-    rationale: compact(draft.rationale),
+    rationale: compactAndLimit(draft.rationale, CREATIVE_LIMITS.rationale),
   };
 }
