@@ -30,19 +30,18 @@ function BootstrapAdminPage() {
         <div className="w-full max-w-md">
           <div className="mb-6 flex flex-col items-center gap-4">
             <Logo className="h-20" />
-            <h1 className="font-display text-2xl uppercase tracking-wider brand-gradient-text">First-time setup</h1>
+            <h1 className="font-display text-2xl uppercase tracking-wider brand-gradient-text">Back-office account repair</h1>
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xl">
             <p className="text-sm text-muted-foreground">
-              Creates the first administrator account (<code>swanepoelchristo00@gmail.com</code>, Christo) and
-              sends an invitation email so they can set a password. Safe to run multiple times — it does nothing
-              if an admin already exists.
+              Repairs the two designated 4SPORT back-office administrator accounts and their linked profile, role and rep records.
+              You must already be signed in as an administrator to run this action.
             </p>
             {msg && <p className="mt-3 text-sm text-foreground">{msg}</p>}
             {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
             <button onClick={run} disabled={busy}
               className="mt-6 w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">
-              {busy ? "Working…" : "Bootstrap first admin"}
+              {busy ? "Working…" : "Repair back-office accounts"}
             </button>
             <p className="mt-4 text-center text-xs text-muted-foreground">
               <Link to="/login" className="text-primary">Back to sign in</Link>
