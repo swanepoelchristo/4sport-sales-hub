@@ -1,0 +1,452 @@
+schema_version: "1.0"
+document:
+  title: "4SPORT Sales Hub Project Decision and Evidence Inventory"
+  repository: "swanepoelchristo/4sport-sales-hub"
+  branch_baseline: "main"
+  inspection_commit: "bc4752041e277403dd5c73e9c93fecd6d22db65d"
+  recorded_date: "2026-08-06"
+  status: "living_product_owner_decision_and_evidence_inventory"
+  final_production_success_contract: false
+  documentation_only: true
+
+classifications:
+  - CONFIRMED
+  - IMPLEMENTED
+  - PARTIAL
+  - ABSENT
+  - CONFLICTING
+  - NO_EVIDENCE
+  - OUT_OF_SCOPE
+
+source_of_truth_rule: "Current Product Owner instruction controls. Repository code, routes, components, migrations, README text, and deployment notes are evidence and must not be silently promoted into approved intent."
+
+decisions:
+  - id: SH-001
+    area: product_identity
+    statement: "The Sales Hub is a standalone internal 4SPORT application."
+    classification: CONFIRMED
+    rationale: "It is operationally separate from the main 4SPORT application."
+  - id: SH-002
+    area: product_identity
+    statement: "The Sales Hub is not the main 4SPORT application."
+    classification: CONFIRMED
+    rationale: "Main-app roles and operational data are not automatically Sales Hub scope."
+  - id: SH-003
+    area: product_purpose
+    statement: "Core purpose includes sales CRM, leads, pipeline, meetings, onboarding, WhatsApp support, support tickets, and internal staff operations."
+    classification: CONFIRMED
+    rationale: "Current Product Owner baseline."
+  - id: SH-004
+    area: scope_governance
+    statement: "Existing repository features automatically define approved scope."
+    classification: CONFLICTING
+    rationale: "Repository presence is evidence only; Product Owner approval remains controlling."
+  - id: SH-005
+    area: scope
+    statement: "Impact War Room is included in the first-production boundary."
+    classification: OUT_OF_SCOPE
+    rationale: "Implementation evidence exists, but first-production approval is not established."
+  - id: SH-006
+    area: scope
+    statement: "Marketing Lab and public attribution are included in the first-production boundary."
+    classification: OUT_OF_SCOPE
+    rationale: "Separate Product Owner approval is required."
+  - id: SH-007
+    area: contract_status
+    statement: "These Sidekick files are the final Production Success Contract."
+    classification: CONFIRMED
+    value: false
+    rationale: "They are living knowledge and evidence inventories."
+
+  - id: SH-010
+    area: governance
+    statement: "Product Owner approval governs scope, integrations, and production acceptance."
+    classification: CONFIRMED
+  - id: SH-011
+    area: roles
+    statement: "The two designated back-office accounts use the existing admin role."
+    classification: CONFIRMED
+    accounts:
+      - "info@4sport.co.za"
+      - "support@4sport.co.za"
+    rationale: "Current operating model; runtime linkage still requires verification."
+  - id: SH-012
+    area: roles
+    statement: "Sales representatives use sales_rep."
+    classification: IMPLEMENTED
+  - id: SH-013
+    area: roles
+    statement: "Call-centre agents use call_center_agent."
+    classification: PARTIAL
+    rationale: "Signup, profile, approval status, lead scope, and activity foundations exist; production activation is unverified."
+  - id: SH-014
+    area: roles
+    statement: "Christo requires a separate permanent support role."
+    classification: CONFLICTING
+    rationale: "Historical migrations added support; later agreed model uses admin for both back-office accounts."
+  - id: SH-015
+    area: authorisation
+    statement: "Front-end navigation is sufficient role enforcement."
+    classification: CONFLICTING
+    rationale: "Database and server-side authorisation are required boundaries."
+  - id: SH-016
+    area: audit_identity
+    statement: "Support operator identity is reliably derived from the authenticated user."
+    classification: CONFLICTING
+    rationale: "The inspected UI allowed a selectable staff name."
+
+  - id: SH-020
+    area: workflow
+    statement: "Leads enter through approved public organisation intake paths."
+    classification: CONFIRMED
+  - id: SH-021
+    area: workflow
+    statement: "Leads are reviewed, assigned, contacted, and progressed in the CRM."
+    classification: CONFIRMED
+  - id: SH-022
+    area: workflow
+    statement: "Contact outcomes, notes, and follow-ups must be recorded."
+    classification: CONFIRMED
+  - id: SH-023
+    area: workflow
+    statement: "Meetings must be scheduled and recorded."
+    classification: CONFIRMED
+  - id: SH-024
+    area: workflow
+    statement: "Qualified organisations move into signup and onboarding administration."
+    classification: CONFIRMED
+  - id: SH-025
+    area: whatsapp
+    statement: "WhatsApp is a human-triage channel, not an uncontrolled chatbot."
+    classification: CONFIRMED
+  - id: SH-026
+    area: support
+    statement: "Support tickets require queue, severity, ownership, SLA, notes, status, and resolution."
+    classification: CONFIRMED
+  - id: SH-027
+    area: calendar
+    statement: "Internal meeting scheduling proves external calendar integration."
+    classification: NO_EVIDENCE
+
+  - id: SH-030
+    area: deployment
+    statement: "Intended deployment flow is GitHub to Ubuntu production server to Coolify to production."
+    classification: CONFIRMED
+  - id: SH-031
+    area: deployment
+    statement: "The current production domain can be taken from historical documentation."
+    classification: CONFLICTING
+    rationale: "The target must be verified from current Coolify and runtime evidence."
+  - id: SH-032
+    area: deployment
+    statement: "The exact deployed branch and commit are known from repository inspection."
+    classification: NO_EVIDENCE
+  - id: SH-033
+    area: deployment
+    statement: "The repository contains production Docker and Nitro deployment configuration."
+    classification: PARTIAL
+  - id: SH-034
+    area: deployment_pipeline
+    statement: "A repository CI/CD workflow proves build and deployment."
+    classification: ABSENT
+    rationale: "No current .github/workflows pipeline was found on inspected main."
+  - id: SH-035
+    area: health
+    statement: "/api/health proves full production health."
+    classification: CONFLICTING
+    rationale: "It proves application liveness only."
+  - id: SH-036
+    area: deployment
+    statement: "A known rollback target is required before deployment."
+    classification: CONFIRMED
+
+  - id: SH-040
+    area: database
+    statement: "The Sales Hub uses, or must use, a dedicated Supabase project."
+    classification: CONFIRMED
+  - id: SH-041
+    area: database
+    statement: "The currently referenced Supabase project is proven separate from main 4SPORT production."
+    classification: NO_EVIDENCE
+  - id: SH-042
+    area: integration
+    statement: "The Sales Hub may write directly to main 4SPORT production by default."
+    classification: CONFIRMED
+    value: false
+  - id: SH-043
+    area: integration
+    statement: "An approved main-app integration requires ownership, fields, direction, auth, RLS review, failure behaviour, audit, rollback, and production approval."
+    classification: CONFIRMED
+  - id: SH-044
+    area: migrations
+    statement: "A migration file proves the migration is applied in production."
+    classification: NO_EVIDENCE
+  - id: SH-045
+    area: migrations
+    statement: "The support schema is reproducible from version-controlled migrations."
+    classification: CONFLICTING
+    rationale: "Clean creation of the base support_tickets table was not established."
+  - id: SH-046
+    area: service_role
+    statement: "Service-role usage may rely on hidden internal UI routes."
+    classification: CONFLICTING
+    rationale: "Explicit server-side authentication and authorisation are required."
+
+  - id: SH-050
+    area: crm
+    statement: "Lead create, edit, assign, filter, follow-up, status, archive, and public-source fields exist."
+    classification: IMPLEMENTED
+  - id: SH-051
+    area: crm
+    statement: "Lead call outcomes and lead activity exist."
+    classification: IMPLEMENTED
+  - id: SH-052
+    area: meetings
+    statement: "Meeting creation, status, outcome, next action, and filtering exist."
+    classification: IMPLEMENTED
+  - id: SH-053
+    area: onboarding
+    statement: "Signup and commission records exist."
+    classification: PARTIAL
+    rationale: "They do not establish a final approved onboarding or accounting contract."
+  - id: SH-054
+    area: lead_research
+    statement: "Public-source lead research and candidate review exist."
+    classification: IMPLEMENTED
+  - id: SH-055
+    area: storage
+    statement: "Lead attachments use a private storage model."
+    classification: PARTIAL
+    rationale: "Production configuration and file restrictions remain unverified."
+  - id: SH-056
+    area: crm
+    statement: "CSV export exists."
+    classification: IMPLEMENTED
+  - id: SH-057
+    area: crm
+    statement: "CSV import is complete."
+    classification: PARTIAL
+  - id: SH-058
+    area: onboarding
+    statement: "Formal onboarding workflow transitions are enforced."
+    classification: ABSENT
+
+  - id: SH-060
+    area: whatsapp
+    statement: "Inbound WhatsApp webhook parsing and inbox persistence exist."
+    classification: IMPLEMENTED
+  - id: SH-061
+    area: whatsapp
+    statement: "Internal WhatsApp inbox and human-triage UI exist."
+    classification: IMPLEMENTED
+  - id: SH-062
+    area: whatsapp_support
+    statement: "WhatsApp messages can create support tickets."
+    classification: IMPLEMENTED
+  - id: SH-063
+    area: whatsapp_security
+    statement: "WhatsApp inbox API caller authentication is demonstrated."
+    classification: CONFLICTING
+    rationale: "The inspected API uses a service-role client without demonstrated caller authentication."
+  - id: SH-064
+    area: webhook_security
+    statement: "Meta webhook POST authenticity is verified."
+    classification: CONFLICTING
+    rationale: "POST signature verification was not demonstrated."
+  - id: SH-065
+    area: whatsapp_runtime
+    statement: "Live WhatsApp number, Meta app, tokens, and delivery are verified."
+    classification: NO_EVIDENCE
+  - id: SH-066
+    area: support
+    statement: "Support queue, SLA, severity, notes, status, and activity UI exist."
+    classification: IMPLEMENTED
+  - id: SH-067
+    area: support_rls
+    statement: "Support activity RLS is least privilege."
+    classification: CONFLICTING
+    rationale: "Inspected policies included unrestricted using(true) and with check(true)."
+  - id: SH-068
+    area: support_audit
+    statement: "Support audit identity is trustworthy."
+    classification: CONFLICTING
+  - id: SH-069
+    area: support_schema
+    statement: "Support base-table migration history is complete."
+    classification: CONFLICTING
+
+  - id: SH-070
+    area: authentication
+    statement: "Supabase password login, sessions, profiles, and role resolution exist."
+    classification: PARTIAL
+  - id: SH-071
+    area: staff_management
+    statement: "Admin invitation, reset, role update, activation, and account-linkage functions exist."
+    classification: PARTIAL
+  - id: SH-072
+    area: call_centre_security
+    statement: "The call-centre invite code is a secure secret."
+    classification: CONFLICTING
+    rationale: "It was embedded in client-visible source."
+  - id: SH-073
+    area: secrets
+    statement: "A tracked .env file exists in the public repository tree."
+    classification: CONFLICTING
+    rationale: "Values were not inspected or exposed; file presence is a security concern."
+  - id: SH-074
+    area: secrets
+    statement: ".gitignore fully prevents environment files from being committed."
+    classification: CONFLICTING
+  - id: SH-075
+    area: environment
+    statement: "Environment-variable documentation is internally consistent."
+    classification: CONFLICTING
+  - id: SH-076
+    area: logging
+    statement: "Production authentication diagnostics avoid profile and session exposure."
+    classification: CONFLICTING
+  - id: SH-077
+    area: system_check
+    statement: "The System Check is read-only."
+    classification: CONFLICTING
+    rationale: "It performs database writes and sends a password-reset email."
+  - id: SH-078
+    area: notifications
+    statement: "Notifications are operational."
+    classification: ABSENT
+    rationale: "Only interfaces and a no-op channel exist."
+  - id: SH-079
+    area: secrets
+    statement: "Secret values may be copied into documentation for completeness."
+    classification: CONFIRMED
+    value: false
+
+  - id: SH-080
+    area: rls
+    statement: "Core tables contain meaningful RLS policy evidence."
+    classification: PARTIAL
+  - id: SH-081
+    area: rls
+    statement: "Legacy support policies are conclusively removed from production."
+    classification: NO_EVIDENCE
+  - id: SH-082
+    area: rls
+    statement: "Front-end filtering and RLS are equivalent."
+    classification: CONFLICTING
+  - id: SH-083
+    area: storage
+    statement: "The lead attachment bucket is intended to be private."
+    classification: IMPLEMENTED
+  - id: SH-084
+    area: storage
+    statement: "Attachment file-size and type controls are verified."
+    classification: NO_EVIDENCE
+  - id: SH-085
+    area: production_readiness
+    statement: "Production-readiness checklists prove production readiness."
+    classification: CONFLICTING
+  - id: SH-086
+    area: production_readiness
+    statement: "The inspected repository is production-ready."
+    classification: CONFLICTING
+    rationale: "Security, migration, pipeline, environment, and runtime-verification gaps remain."
+
+implementation_snapshot:
+  lead_management: IMPLEMENTED
+  lead_research_and_candidate_inbox: IMPLEMENTED
+  meetings: IMPLEMENTED
+  basic_health_endpoint: IMPLEMENTED
+  private_lead_attachments: PARTIAL
+  authentication: PARTIAL
+  signups_and_onboarding: PARTIAL
+  staff_management: PARTIAL
+  whatsapp: CONFLICTING
+  support_tickets: CONFLICTING
+  roles_and_rls: CONFLICTING
+  notifications: ABSENT
+  ci_cd_pipeline: ABSENT
+  verified_ubuntu_coolify_state: NO_EVIDENCE
+  verified_dedicated_supabase_separation: NO_EVIDENCE
+  impact_war_room_first_production_scope: OUT_OF_SCOPE
+  marketing_lab_first_production_scope: OUT_OF_SCOPE
+
+open_questions:
+  - id: OQ-001
+    question: "Which exact Supabase project is production, and is it separate from main 4SPORT production?"
+    classification: NO_EVIDENCE
+  - id: OQ-002
+    question: "Which branch and commit is currently deployed by Coolify?"
+    classification: NO_EVIDENCE
+  - id: OQ-003
+    question: "What is the verified production domain and Coolify application identity?"
+    classification: NO_EVIDENCE
+  - id: OQ-004
+    question: "Which database migrations have actually been applied?"
+    classification: NO_EVIDENCE
+  - id: OQ-005
+    question: "Where was support_tickets originally created, and can the schema be replayed cleanly?"
+    classification: CONFLICTING
+  - id: OQ-006
+    question: "Which legacy support policies remain active?"
+    classification: NO_EVIDENCE
+  - id: OQ-007
+    question: "Is webhook POST signature verification configured elsewhere?"
+    classification: NO_EVIDENCE
+  - id: OQ-008
+    question: "Which WhatsApp number and Meta application are approved for production?"
+    classification: NO_EVIDENCE
+  - id: OQ-009
+    question: "Are Impact War Room and Marketing Lab approved future Sales Hub modules?"
+    classification: OUT_OF_SCOPE
+  - id: OQ-010
+    question: "Is external calendar integration required?"
+    classification: NO_EVIDENCE
+  - id: OQ-011
+    question: "Which notification transports are required for first production?"
+    classification: NO_EVIDENCE
+  - id: OQ-012
+    question: "What retention, backup, deletion, and POPIA rules apply to each Sales Hub data class?"
+    classification: NO_EVIDENCE
+  - id: OQ-013
+    question: "Which automated checks must pass before deployment approval?"
+    classification: NO_EVIDENCE
+
+first_production_boundary:
+  classification: CONFIRMED
+  status: "proposed_minimum_requiring_product_owner_approval"
+  conditions:
+    - "verified dedicated Supabase project"
+    - "approved authenticated users and roles"
+    - "Product Owner-selected core CRM, meeting, signup or onboarding, WhatsApp triage, and support-ticket functions"
+    - "server-side authorisation and least-privilege RLS"
+    - "audit identity derived from authenticated sessions"
+    - "no direct writes into main 4SPORT production"
+    - "no secret exposure"
+    - "authenticated service-role routes"
+    - "verified webhook authenticity"
+    - "reproducible migrations"
+    - "verified deployed commit, liveness check, smoke-test plan, backup, and rollback target"
+  exclusions_unless_approved:
+    - "Impact War Room"
+    - "Marketing Lab expansion"
+    - "external calendar sync"
+    - "automated notifications"
+    - "main-database integration"
+
+smallest_recommended_next_action:
+  type: "read_only_production_evidence_capture"
+  classification: CONFIRMED
+  steps:
+    - "identify exact Coolify application, branch, and deployed commit"
+    - "identify runtime domain and container or build configuration"
+    - "capture environment-variable names only"
+    - "verify dedicated Supabase project boundary"
+    - "record applied migration and schema state"
+    - "record current role and RLS shape"
+    - "check /api/health without running write-capable System Check"
+  prohibited_actions:
+    - "deploy"
+    - "migrate"
+    - "repair"
+    - "expose secrets"
+    - "change production data"
