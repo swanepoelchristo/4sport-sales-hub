@@ -146,7 +146,7 @@ source_of_truth:
     - "Preserve contradictions as CONFLICTING until resolved by evidence or Product Owner decision."
     - "Never expose secret values."
 
- deployment_architecture:
+deployment_architecture:
   classification: CONFIRMED
   flow:
     - "GitHub repository"
@@ -165,7 +165,7 @@ source_of_truth:
     classification: ABSENT
     evidence: "No current .github/workflows pipeline was found on the inspected main branch."
 
- database_boundaries:
+database_boundaries:
   dedicated_supabase_requirement:
     classification: CONFIRMED
     required: true
