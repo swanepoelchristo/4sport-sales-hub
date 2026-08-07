@@ -1,0 +1,385 @@
+schema_version: "1.0"
+document:
+  title: "4SPORT Sales Hub Product Owner Flow"
+  repository: "swanepoelchristo/4sport-sales-hub"
+  branch_baseline: "main"
+  inspection_commit: "bc4752041e277403dd5c73e9c93fecd6d22db65d"
+  recorded_date: "2026-08-06"
+  status: "living_product_owner_knowledge"
+  final_production_success_contract: false
+  documentation_only: true
+
+classifications:
+  - CONFIRMED
+  - IMPLEMENTED
+  - PARTIAL
+  - ABSENT
+  - CONFLICTING
+  - NO_EVIDENCE
+  - OUT_OF_SCOPE
+
+classification_definitions:
+  CONFIRMED: "Explicitly approved Product Owner intent or architecture."
+  IMPLEMENTED: "Repository evidence shows a meaningful implementation path, subject to runtime verification."
+  PARTIAL: "Meaningful implementation exists, but the intended outcome is incomplete or unverified."
+  ABSENT: "The inspected repository contains evidence that the capability is not implemented."
+  CONFLICTING: "Implementation, documentation, migrations, or historical decisions disagree."
+  NO_EVIDENCE: "The repository does not prove the claim."
+  OUT_OF_SCOPE: "Not part of the confirmed Sales Hub purpose unless separately approved."
+
+product:
+  name: "4SPORT Sales Hub"
+  classification: CONFIRMED
+  standalone_internal_application: true
+  is_main_4sport_application: false
+  purpose:
+    - "school sales CRM"
+    - "lead capture and lead management"
+    - "sales pipeline management"
+    - "meeting scheduling and meeting records"
+    - "customer onboarding and signup operations"
+    - "WhatsApp support intake and human triage"
+    - "support ticket handling"
+    - "internal sales, support, call-centre, and staff operations"
+  scope_rule: "Repository presence is evidence only and does not automatically establish Product Owner approval."
+  out_of_scope_unless_approved:
+    - "Impact War Room"
+    - "Marketing Lab and public marketing attribution expansion"
+    - "main 4SPORT product features"
+    - "athlete, guardian, coach, school, fixture, or game-day data owned by the main 4SPORT application"
+    - "automatic writes into the main 4SPORT production database"
+    - "unrelated public-facing product experiences"
+
+users_and_roles:
+  product_owner:
+    classification: CONFIRMED
+    responsibilities:
+      - "approve product intent"
+      - "approve scope"
+      - "approve production boundaries"
+      - "approve integrations"
+      - "approve the future Production Success Contract"
+  backoffice_admins:
+    classification: CONFIRMED
+    technical_role: admin
+    accounts:
+      - email: "info@4sport.co.za"
+        name: "Marianne"
+      - email: "support@4sport.co.za"
+        name: "Christo"
+    note: "Runtime account linkage and effective access remain subject to production verification."
+  sales_representatives:
+    classification: IMPLEMENTED
+    technical_role: sales_rep
+    intended_access:
+      - "assigned leads"
+      - "assigned meetings"
+      - "assigned signups"
+      - "follow-ups"
+      - "related sales records"
+  call_centre_agents:
+    classification: PARTIAL
+    technical_role: call_center_agent
+    intended_access:
+      - "public organisation contact information"
+      - "approved lead queues"
+      - "call outcomes"
+      - "notes"
+      - "follow-ups"
+    approval_required_before_operational_access: true
+  support_operators:
+    business_function_classification: CONFIRMED
+    technical_role_classification: CONFLICTING
+    agreed_model: "The two designated back-office users use admin."
+    unresolved_evidence: "Historical migrations added a support enum and policies that conflict with the later admin-only back-office model."
+
+product_owner_workflow:
+  classification: CONFIRMED
+  steps:
+    - order: 1
+      action: "Capture an approved public organisation or school lead."
+    - order: 2
+      action: "Review, record, assign, and progress the lead in the CRM."
+    - order: 3
+      action: "Perform approved contact and record the outcome."
+    - order: 4
+      action: "Schedule and record follow-ups and meetings."
+    - order: 5
+      action: "Move interested organisations into signup and onboarding administration."
+    - order: 6
+      action: "Receive WhatsApp messages into a human triage inbox."
+    - order: 7
+      action: "Route WhatsApp messages to approved sales or support handling."
+    - order: 8
+      action: "Create and manage support tickets with queue, severity, ownership, SLA, notes, and resolution."
+    - order: 9
+      action: "Allow authorised administrators to manage staff, assignments, oversight, and audit evidence."
+    - order: 10
+      action: "Prevent direct writes to the main 4SPORT production database unless an integration is explicitly approved."
+
+source_of_truth:
+  classification: CONFIRMED
+  precedence:
+    - rank: 1
+      source: "current explicit Product Owner instruction"
+    - rank: 2
+      source: "future approved Production Success Contract"
+    - rank: 3
+      source: "Sidekick Product Owner knowledge files"
+    - rank: 4
+      source: "verified read-only production evidence"
+    - rank: 5
+      source: "current repository implementation evidence"
+    - rank: 6
+      source: "migrations and generated types"
+    - rank: 7
+      source: "current operational runbooks"
+    - rank: 8
+      source: "historical README text, old PR descriptions, old handovers, route names, and comments"
+  rules:
+    - "Do not treat the README as the final product contract."
+    - "Do not guess the production domain, branch, database, container, or server path."
+    - "Do not infer that a migration was applied because it exists."
+    - "Do not infer that a route works because it builds or appears in navigation."
+    - "Do not infer RLS safety from front-end filtering."
+    - "Do not treat existing features as approved scope without Product Owner confirmation."
+    - "Preserve contradictions as CONFLICTING until resolved by evidence or Product Owner decision."
+    - "Never expose secret values."
+
+deployment_architecture:
+  classification: CONFIRMED
+  flow:
+    - "GitHub repository"
+    - "Ubuntu production server"
+    - "Coolify"
+    - "Sales Hub production runtime"
+  deployment_target_rule: "The exact domain, Coolify application, server directory, container, branch, and deployed commit must be verified from current read-only production evidence."
+  repository_deployment_evidence:
+    classification: PARTIAL
+    items:
+      - "production Dockerfile"
+      - "Docker Compose and Traefik configuration"
+      - "Node/Nitro runtime command"
+      - "basic health endpoint"
+  deployment_pipeline:
+    classification: ABSENT
+    evidence: "No current .github/workflows pipeline was found on the inspected main branch."
+
+database_boundaries:
+  dedicated_supabase_requirement:
+    classification: CONFIRMED
+    required: true
+  current_dedicated_project_proof:
+    classification: NO_EVIDENCE
+    reason: "A project reference exists, but repository inspection alone does not prove separation from the main 4SPORT production project."
+  main_database_write_rule:
+    classification: CONFIRMED
+    direct_writes_allowed_by_default: false
+    approved_integration_requirements:
+      - "Product Owner-approved integration purpose"
+      - "defined source and destination ownership"
+      - "documented fields and data-flow direction"
+      - "authentication and authorisation controls"
+      - "RLS and service-role review"
+      - "failure and retry behaviour"
+      - "audit logging"
+      - "rollback or disablement procedure"
+      - "production verification approval"
+  service_role_rule: "Service-role usage is server-only and requires explicit authentication, authorisation, validation, auditability, and abuse controls."
+
+whatsapp_and_support:
+  intended_workflow:
+    classification: CONFIRMED
+    human_triage: true
+    uncontrolled_chatbot: false
+    capabilities:
+      - "receive WhatsApp messages"
+      - "route messages to approved queues"
+      - "convert eligible support messages into support tickets"
+      - "track ownership, SLA, notes, status, and resolution"
+  repository_evidence:
+    classification: PARTIAL
+    implemented_paths:
+      - "webhook verification and inbound parsing"
+      - "WhatsApp inbox persistence"
+      - "internal inbox screen"
+      - "manual test-message creation"
+      - "category and status updates"
+      - "WhatsApp-to-support-ticket conversion"
+      - "support ticket listing, creation, filtering, SLA presentation, notes, and activity rows"
+  unresolved_findings:
+    classification: CONFLICTING
+    items:
+      - "WhatsApp inbox API uses a service-role client without demonstrated caller authentication."
+      - "Webhook POST handler does not demonstrate Meta request-signature verification."
+      - "Support staff identity can be selected in the UI rather than derived reliably from the authenticated user."
+      - "Support activity RLS contains unrestricted using(true) and with check(true) policies."
+      - "Migration history does not clearly prove clean creation of the base support_tickets table."
+      - "Live webhook configuration, number ownership, token validity, and end-to-end delivery were not verified."
+
+crm_and_leads:
+  intended_workflow:
+    classification: CONFIRMED
+    capabilities:
+      - "capture approved organisation leads"
+      - "record public contact routes and source evidence"
+      - "assign leads to sales or call-centre owners"
+      - "record contact attempts, outcomes, notes, and next follow-up"
+      - "schedule and record meetings"
+      - "move qualified opportunities into signup and onboarding administration"
+      - "preserve an audit trail"
+      - "respect do-not-contact and privacy constraints"
+  repository_evidence:
+    classification: IMPLEMENTED
+    items:
+      - "lead create, edit, and archive"
+      - "ownership and filters"
+      - "statuses and follow-up dates"
+      - "public-source contact fields"
+      - "call outcomes and lead activity"
+      - "meeting creation and filtering"
+      - "signup and commission screens"
+      - "CSV export"
+      - "private lead attachments"
+      - "admin account management"
+      - "public-source lead research and candidate review inbox"
+  partial_or_conflicting:
+    - classification: PARTIAL
+      item: "CSV import is presented but not completed."
+    - classification: ABSENT
+      item: "Real notification transport is not wired."
+    - classification: PARTIAL
+      item: "Formal onboarding state-machine enforcement is informational only."
+    - classification: PARTIAL
+      item: "Calendar evidence is internal meeting scheduling, not a proven full or external calendar integration."
+    - classification: OUT_OF_SCOPE
+      item: "Marketing Lab attribution requires separate Product Owner approval for the first-production boundary."
+
+security_guardrails:
+  classification: CONFIRMED
+  rules:
+    - "Never modify production during an inspection."
+    - "Never change production data without an explicitly approved change plan."
+    - "Never expose secret values."
+    - "Never place service-role, webhook, provider, or private API secrets in browser-visible variables."
+    - "Never rely on front-end visibility as authorisation."
+    - "Authenticate and authorise every internal write path."
+    - "Verify webhook authenticity, not only subscription challenge tokens."
+    - "Derive audit identity from the authenticated user."
+    - "Use public organisation contact information in a POPIA-aware manner."
+    - "Do not use child, athlete, guardian, leaked, hidden, or questionable personal information for prospecting."
+    - "Keep the Sales Hub database isolated from the main 4SPORT production database unless an integration is explicitly approved."
+    - "Review migrations separately before applying them."
+    - "Keep a known rollback target before deployment."
+  unresolved_evidence:
+    classification: CONFLICTING
+    items:
+      - "A tracked .env file exists in the public repository tree; its values were not exposed during inspection."
+      - ".gitignore did not demonstrate complete .env exclusion."
+      - "Unauthenticated or insufficiently authenticated service-role API paths were identified."
+      - "Webhook signature verification was not demonstrated."
+      - "A call-centre invite code was embedded in client-visible source."
+      - "Support audit attribution was not reliably tied to the session user."
+      - "Support activity RLS was overly broad."
+      - "Legacy support role policies conflict with the later admin-only back-office model."
+      - "Environment-variable documentation conflicts with server middleware requirements."
+      - "Production authentication code logs profile and session diagnostic information."
+      - "System Check performs writes and sends a password-reset email; it is not a passive inspection."
+
+implementation_summary:
+  - capability: "Supabase authentication"
+    classification: PARTIAL
+    note: "Password login, recovery, profiles, and role resolution exist; production behaviour remains unverified."
+  - capability: "Lead management"
+    classification: IMPLEMENTED
+    note: "Create, edit, assign, filter, follow up, archive, call outcomes, and public-source fields."
+  - capability: "Lead research"
+    classification: IMPLEMENTED
+    note: "Admin-gated search, quality screening, public contact enrichment, and candidate persistence."
+  - capability: "Meetings"
+    classification: IMPLEMENTED
+    note: "Scheduling, recording, status, outcome, next action, and filtering."
+  - capability: "Signups and onboarding"
+    classification: PARTIAL
+    note: "Signup and commission records exist; enforced onboarding workflow is not proven."
+  - capability: "WhatsApp inbox"
+    classification: CONFLICTING
+    note: "Intake and triage exist with serious authentication and verification gaps."
+  - capability: "Support tickets"
+    classification: CONFLICTING
+    note: "Operational UI exists with schema, audit, and RLS concerns."
+  - capability: "Staff management"
+    classification: PARTIAL
+    note: "Invites, role updates, activation, and resets exist; role history conflicts remain."
+  - capability: "Notifications"
+    classification: ABSENT
+    note: "Only interfaces and a no-op channel exist."
+  - capability: "Storage"
+    classification: PARTIAL
+    note: "Private lead-attachment bucket and signed URLs exist; runtime configuration and file controls remain unverified."
+  - capability: "Health endpoint"
+    classification: IMPLEMENTED
+    note: "Basic process-liveness response only."
+  - capability: "CI/CD pipeline"
+    classification: ABSENT
+    note: "No repository workflow proved build, test, or deployment on the inspected main branch."
+
+open_questions:
+  - "Which exact Supabase project is production, and is it separate from main 4SPORT production?"
+  - "Which branch and commit is currently deployed by Coolify?"
+  - "What is the verified current production domain and Coolify application identity?"
+  - "Which build configuration does production use?"
+  - "Which migrations have actually been applied?"
+  - "Where was the base support_tickets table created, and is clean migration replay possible?"
+  - "Which legacy support policies remain active in production?"
+  - "Are all service-role routes authenticated and authorised at runtime?"
+  - "Is Meta webhook POST signature verification configured elsewhere or absent?"
+  - "Which WhatsApp number and Meta application are approved for production?"
+  - "Which functions are included in the first-production Sales Hub boundary?"
+  - "Are Impact War Room and Marketing Lab approved modules or out of scope?"
+  - "Is external calendar integration required?"
+  - "Which notification channels are required for first production?"
+  - "What retention, backup, deletion, and POPIA processes apply?"
+  - "Which automated checks must pass before deployment approval?"
+
+first_production_boundary:
+  classification: CONFIRMED
+  status: "proposed_minimum_requiring_product_owner_approval"
+  required_conditions:
+    - "standalone internal application"
+    - "verified dedicated Supabase project"
+    - "approved authenticated administrators and sales staff"
+    - "Product Owner-selected core CRM, onboarding, WhatsApp, and support workflows"
+    - "server-side role and RLS enforcement"
+    - "audit identity derived from authenticated users"
+    - "no direct writes to main 4SPORT production database"
+    - "no secret exposure"
+    - "authenticated service-role routes"
+    - "verified webhook authenticity"
+    - "reproducible migration path"
+    - "known deployed commit, health check, smoke test, backup, and rollback target"
+  current_repository_proves_all_conditions: false
+  explicit_exclusions:
+    - "Impact War Room"
+    - "Marketing Lab expansion"
+    - "external calendar sync"
+    - "automated notifications"
+    - "automated main-4SPORT database integration"
+    - "capabilities with unverified security or data ownership"
+
+smallest_recommended_next_action:
+  classification: CONFIRMED
+  type: "read_only_production_evidence_capture"
+  change_production: false
+  deploy: false
+  migrate: false
+  repair: false
+  evidence_to_capture:
+    - "exact Coolify application, branch, and deployed commit"
+    - "exact runtime domain and container or build configuration"
+    - "environment-variable names only, never values"
+    - "Supabase project identity and proof of separation from main 4SPORT production"
+    - "applied migration list or schema version"
+    - "current authentication and RLS shape for approved roles"
+    - "availability of /api/health without running write-capable System Check actions"
+  output_rule: "Update evidence inventory only and wait for a later Product Owner-approved change plan."
