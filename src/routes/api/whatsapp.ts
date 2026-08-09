@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
-  forwardWhatsAppToSidekick,
   verifyWhatsAppSignature,
   whatsappMessageText,
   type SalesHubWhatsAppMessage,
 } from "@/lib/sidekick-intake.server";
+import {
+  deliverSidekickOutboxItem,
+  enqueueSidekickDelivery,
+} from "@/lib/sidekick-outbox.server";
 
 function inferQueueType(text: string) {
   const lowered = String(text || "").toLowerCase();
@@ -90,7 +93,7 @@ export const Route = createFileRoute("/api/whatsapp")({
         try {
           const payload = JSON.parse(rawBody) as unknown;
           const values = webhookValues(payload);
-          const deliveries: Array<Promise<"accepted" | "skipped">> = [];
+          const deliveries: Array<Promise<"delivered" | "deferred" | "unavailable">> = [];
           let stored = 0;
 
           for (const value of values) {
@@ -118,28 +121,36 @@ export const Route = createFileRoute("/api/whatsapp")({
               }
 
               stored += 1;
-              deliveries.push(forwardWhatsAppToSidekick({
-                message,
-                senderName: name,
-                phoneNumberId: value.metadata?.phone_number_id,
-              }));
+              try {
+                const sourceEventId = await enqueueSidekickDelivery({
+                  message,
+                  senderName: name,
+                  phoneNumberId: value.metadata?.phone_number_id,
+                });
+                deliveries.push(deliverSidekickOutboxItem(sourceEventId));
+              } catch (error) {
+                console.error("[Sidekick outbox]", error instanceof Error ? error.message : "Queue failure");
+              }
             }
           }
 
           const settled = await Promise.allSettled(deliveries);
-          const accepted = settled.filter(
-            (result) => result.status === "fulfilled" && result.value === "accepted",
+          const delivered = settled.filter(
+            (result) => result.status === "fulfilled" && result.value === "delivered",
           ).length;
-          const skipped = settled.filter(
-            (result) => result.status === "fulfilled" && result.value === "skipped",
+          const deferred = settled.filter(
+            (result) => result.status === "fulfilled" && result.value === "deferred",
+          ).length;
+          const unavailable = settled.filter(
+            (result) => result.status === "fulfilled" && result.value === "unavailable",
           ).length;
           const failed = settled.filter((result) => result.status === "rejected").length;
-          if (failed) console.error(`[Sidekick intake] ${failed} delivery attempt(s) failed`);
+          if (failed) console.error(`[Sidekick intake] ${failed} outbox worker attempt(s) failed`);
 
           return Response.json({
             success: true,
             stored,
-            sidekick: { accepted, skipped, failed },
+            sidekick: { delivered, deferred, unavailable, failed },
           });
         } catch (error) {
           console.error("[WhatsApp webhook]", error instanceof Error ? error.message : "Unknown failure");
