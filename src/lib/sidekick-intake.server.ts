@@ -1,3 +1,4 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 type WhatsAppMedia = {
   id?: string;
   mime_type?: string;
@@ -23,6 +24,8 @@ type IntakeAttachment = {
   kind: "image" | "document" | "audio" | "video" | "other";
   mimeType?: string;
   fileName?: string;
+  sizeBytes?: number;
+  downloadUrl?: string;
 };
 
 function bytesToHex(bytes: ArrayBuffer): string {
@@ -69,9 +72,31 @@ export function whatsappMessageText(message: SalesHubWhatsAppMessage): string {
   return `[${message.type || "non-text"} message received]`;
 }
 
-function intakeAttachments(message: SalesHubWhatsAppMessage): IntakeAttachment[] {
+const ALLOWED_MEDIA_TYPES = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/gif",
+  "application/pdf", "text/plain",
+  "audio/mpeg", "audio/ogg", "audio/wav",
+  "video/mp4", "video/webm",
+]);
+
+function safeFileName(value: string | undefined, mediaId: string, mimeType: string): string {
+  const extension = mimeType === "image/jpeg" ? "jpg"
+    : mimeType === "image/png" ? "png"
+      : mimeType === "image/webp" ? "webp"
+        : mimeType === "image/gif" ? "gif"
+          : mimeType === "application/pdf" ? "pdf"
+            : mimeType === "audio/ogg" ? "ogg"
+              : mimeType === "audio/mpeg" ? "mp3"
+                : mimeType === "video/mp4" ? "mp4"
+                  : "bin";
+  const cleaned = value?.split(/[\\/]/).pop()?.replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 120);
+  return cleaned || `${mediaId}.${extension}`;
+}
+
+async function persistMediaEvidence(message: SalesHubWhatsAppMessage): Promise<IntakeAttachment[]> {
   const media = mediaFor(message);
   if (!media?.id) return [];
+
   const kind = message.type === "image"
     ? "image"
     : message.type === "document"
@@ -81,11 +106,69 @@ function intakeAttachments(message: SalesHubWhatsAppMessage): IntakeAttachment[]
         : message.type === "video"
           ? "video"
           : "other";
-  return [{
+  const attachment: IntakeAttachment = {
     sourceId: media.id,
     kind,
     mimeType: media.mime_type,
     fileName: media.filename,
+  };
+
+  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+  const version = process.env.WHATSAPP_GRAPH_API_VERSION?.trim();
+  if (!token || !version) return [attachment];
+
+  const metadataResponse = await fetch(
+    `https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(media.id)}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8_000),
+    },
+  );
+  if (!metadataResponse.ok) throw new Error(`WhatsApp media metadata returned ${metadataResponse.status}`);
+  const metadata = await metadataResponse.json() as {
+    url?: string;
+    mime_type?: string;
+    file_size?: number;
+  };
+  if (!metadata.url) throw new Error("WhatsApp media URL was not returned");
+
+  const mimeType = metadata.mime_type || media.mime_type || "application/octet-stream";
+  const claimedSize = Number(metadata.file_size || 0);
+  if (!ALLOWED_MEDIA_TYPES.has(mimeType)) throw new Error(`WhatsApp media type is not allowed: ${mimeType}`);
+  if (claimedSize > 25_000_000) throw new Error("WhatsApp media exceeds the 25 MB evidence limit");
+
+  const mediaUrl = new URL(metadata.url);
+  if (mediaUrl.protocol !== "https:") throw new Error("WhatsApp media URL must use HTTPS");
+
+  const download = await fetch(mediaUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!download.ok) throw new Error(`WhatsApp media download returned ${download.status}`);
+  const bytes = new Uint8Array(await download.arrayBuffer());
+  if (bytes.byteLength > 25_000_000) throw new Error("WhatsApp media exceeds the 25 MB evidence limit");
+
+  const fileName = safeFileName(media.filename, media.id, mimeType);
+  const date = new Date().toISOString().slice(0, 10);
+  const storagePath = `whatsapp/${date}/${media.id}/${fileName}`;
+  const bucket = supabaseAdmin.storage.from("sidekick-evidence");
+  const { error: uploadError } = await bucket.upload(storagePath, bytes, {
+    contentType: mimeType,
+    upsert: false,
+  });
+  if (uploadError && !/already exists|duplicate/i.test(uploadError.message)) {
+    throw new Error(`Unable to store WhatsApp evidence: ${uploadError.message}`);
+  }
+
+  const { data: signed, error: signedError } = await bucket.createSignedUrl(storagePath, 15 * 60);
+  if (signedError || !signed?.signedUrl) throw new Error("Unable to create private evidence reference");
+
+  return [{
+    ...attachment,
+    mimeType,
+    fileName,
+    sizeBytes: bytes.byteLength,
+    downloadUrl: signed.signedUrl,
   }];
 }
 
@@ -122,7 +205,7 @@ export async function forwardWhatsAppToSidekick(input: {
         address: sender,
       },
       message: whatsappMessageText(input.message),
-      attachments: intakeAttachments(input.message),
+      attachments: await persistMediaEvidence(input.message),
       hints: {
         project: "4SPORT Sales Hub",
       },
