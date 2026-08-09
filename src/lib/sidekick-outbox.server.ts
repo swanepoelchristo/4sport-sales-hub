@@ -57,7 +57,7 @@ export async function deliverSidekickOutboxItem(sourceEventId: string): Promise<
       updated_at: new Date().toISOString(),
     })
     .eq("source_event_id", sourceEventId)
-    .in("status", ["pending", "delivering"])
+    .eq("status", "pending")
     .lte("next_attempt_at", new Date().toISOString())
     .select("source_event_id,payload,attempts")
     .maybeSingle();
