@@ -1,5 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  verifyWhatsAppSignature,
+  whatsappMessageText,
+  type SalesHubWhatsAppMessage,
+} from "@/lib/sidekick-intake.server";
+import {
+  deliverSidekickOutboxItem,
+  enqueueSidekickDelivery,
+} from "@/lib/sidekick-outbox.server";
 
 function inferQueueType(text: string) {
   const lowered = String(text || "").toLowerCase();
@@ -20,6 +29,39 @@ function inferQueueType(text: string) {
     : "Support";
 }
 
+type WhatsAppContact = {
+  wa_id?: string;
+  profile?: { name?: string };
+};
+
+type WhatsAppValue = {
+  contacts?: WhatsAppContact[];
+  messages?: SalesHubWhatsAppMessage[];
+  metadata?: { phone_number_id?: string };
+};
+
+function webhookValues(payload: unknown): WhatsAppValue[] {
+  if (!payload || typeof payload !== "object") return [];
+  const entries = (payload as { entry?: unknown }).entry;
+  if (!Array.isArray(entries)) return [];
+
+  return entries.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const changes = (entry as { changes?: unknown }).changes;
+    if (!Array.isArray(changes)) return [];
+    return changes.flatMap((change) => {
+      if (!change || typeof change !== "object") return [];
+      const value = (change as { value?: unknown }).value;
+      return value && typeof value === "object" ? [value as WhatsAppValue] : [];
+    });
+  });
+}
+
+function senderName(value: WhatsAppValue, from: string): string {
+  return value.contacts?.find((contact) => contact.wa_id === from)?.profile?.name?.trim()
+    || value.contacts?.[0]?.profile?.name?.trim()
+    || "";
+}
 
 export const Route = createFileRoute("/api/whatsapp")({
   server: {
@@ -42,42 +84,79 @@ export const Route = createFileRoute("/api/whatsapp")({
       },
 
       POST: async ({ request }) => {
+        const rawBody = await request.text();
+        const signature = request.headers.get("x-hub-signature-256");
+        if (!(await verifyWhatsAppSignature(rawBody, signature))) {
+          return Response.json({ error: "Invalid webhook signature" }, { status: 401 });
+        }
+
         try {
-          const payload = await request.json();
+          const payload = JSON.parse(rawBody) as unknown;
+          const values = webhookValues(payload);
+          const deliveries: Array<Promise<"delivered" | "deferred" | "unavailable">> = [];
+          let stored = 0;
 
-          const entry = payload?.entry?.[0];
-          const change = entry?.changes?.[0];
-          const value = change?.value;
-          const message = value?.messages?.[0];
+          for (const value of values) {
+            for (const message of value.messages ?? []) {
+              if (!message.id || !message.from) continue;
 
-          if (!message) {
-            return Response.json({ ok: true });
+              const text = whatsappMessageText(message);
+              const name = senderName(value, message.from);
+              const queueType = inferQueueType(text);
+
+              const { error } = await supabaseAdmin
+                .from("whatsapp_inbox")
+                .insert({
+                  from_number: message.from,
+                  sender_name: name,
+                  message_text: text,
+                  raw_payload: payload,
+                  category: queueType,
+                  status: "New",
+                });
+
+              if (error) {
+                console.error("[WhatsApp inbox persistence]", error.message);
+                continue;
+              }
+
+              stored += 1;
+              try {
+                const sourceEventId = await enqueueSidekickDelivery({
+                  message,
+                  senderName: name,
+                  phoneNumberId: value.metadata?.phone_number_id,
+                });
+                deliveries.push(deliverSidekickOutboxItem(sourceEventId));
+              } catch (error) {
+                console.error("[Sidekick outbox]", error instanceof Error ? error.message : "Queue failure");
+              }
+            }
           }
 
-          const from = message.from ?? "";
-          const text =
-            message.text?.body ??
-            "[non-text message]";
+          const settled = await Promise.allSettled(deliveries);
+          const delivered = settled.filter(
+            (result) => result.status === "fulfilled" && result.value === "delivered",
+          ).length;
+          const deferred = settled.filter(
+            (result) => result.status === "fulfilled" && result.value === "deferred",
+          ).length;
+          const unavailable = settled.filter(
+            (result) => result.status === "fulfilled" && result.value === "unavailable",
+          ).length;
+          const failed = settled.filter((result) => result.status === "rejected").length;
+          if (failed) console.error(`[Sidekick intake] ${failed} outbox worker attempt(s) failed`);
 
-          const queueType = inferQueueType(text);
-
-          await supabaseAdmin
-            .from("whatsapp_inbox")
-            .insert({
-              from_number: from,
-              sender_name: value?.contacts?.[0]?.profile?.name ?? "",
-              message_text: text,
-              raw_payload: payload,
-              category: queueType,
-              status: "New",
-            });
-
-          return Response.json({ success: true });
-        } catch (err) {
-          console.error(err);
+          return Response.json({
+            success: true,
+            stored,
+            sidekick: { delivered, deferred, unavailable, failed },
+          });
+        } catch (error) {
+          console.error("[WhatsApp webhook]", error instanceof Error ? error.message : "Unknown failure");
           return Response.json(
             { error: "Webhook failed" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       },

@@ -1,0 +1,33 @@
+name: Pull request verification
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/sidekick-whatsapp-intake
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+      VITE_SUPABASE_PROJECT_ID: example
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+      WHATSAPP_VERIFY_TOKEN: ci-placeholder
+      WHATSAPP_APP_SECRET: ci-placeholder
+      SIDEKICK_INTAKE_URL: https://sidekick.example.com
+      SIDEKICK_INTAKE_API_KEY: ci-placeholder-intake-key-123456789
+      SIDEKICK_OUTBOX_SECRET: ci-placeholder-outbox-key-123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
