@@ -3,12 +3,24 @@ import {
   forwardWhatsAppToSidekick,
   type SalesHubWhatsAppMessage,
 } from "@/lib/sidekick-intake.server";
+import {
+  forwardEmailToSidekick,
+  type SalesHubEmailMessage,
+} from "@/lib/sidekick-email-intake.server";
 
-export type SidekickOutboxPayload = {
+export type SidekickWhatsAppOutboxPayload = {
+  kind?: "whatsapp";
   message: SalesHubWhatsAppMessage;
   senderName?: string;
   phoneNumberId?: string;
 };
+
+export type SidekickEmailOutboxPayload = {
+  kind: "email";
+  email: SalesHubEmailMessage;
+};
+
+export type SidekickOutboxPayload = SidekickWhatsAppOutboxPayload | SidekickEmailOutboxPayload;
 
 type OutboxRow = {
   source_event_id: string;
@@ -26,7 +38,7 @@ function retryAt(attempts: number): string {
   return new Date(Date.now() + minutes * 60_000).toISOString();
 }
 
-export async function enqueueSidekickDelivery(payload: SidekickOutboxPayload): Promise<string> {
+export async function enqueueSidekickDelivery(payload: SidekickWhatsAppOutboxPayload): Promise<string> {
   const messageId = payload.message.id?.trim();
   if (!messageId) throw new Error("WhatsApp message id is required for Sidekick delivery");
 
@@ -36,7 +48,7 @@ export async function enqueueSidekickDelivery(payload: SidekickOutboxPayload): P
     .upsert({
       source_event_id: sourceEventId,
       channel: "sales_hub_whatsapp",
-      payload,
+      payload: { ...payload, kind: "whatsapp" },
       status: "pending",
       next_attempt_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -46,6 +58,28 @@ export async function enqueueSidekickDelivery(payload: SidekickOutboxPayload): P
     });
 
   if (error) throw new Error(`Unable to queue Sidekick delivery: ${error.message}`);
+  return sourceEventId;
+}
+
+export async function enqueueEmailSidekickDelivery(email: SalesHubEmailMessage): Promise<string> {
+  const sourceEventId = email.sourceEventId.trim();
+  if (!sourceEventId) throw new Error("Email source event id is required for Sidekick delivery");
+
+  const { error } = await supabaseAdmin
+    .from("sidekick_delivery_outbox")
+    .upsert({
+      source_event_id: sourceEventId,
+      channel: email.mailbox === "gmail" ? "sales_hub_gmail" : "sales_hub_afrihost",
+      payload: { kind: "email", email } satisfies SidekickEmailOutboxPayload,
+      status: "pending",
+      next_attempt_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: "source_event_id",
+      ignoreDuplicates: true,
+    });
+
+  if (error) throw new Error(`Unable to queue Sidekick email delivery: ${error.message}`);
   return sourceEventId;
 }
 
@@ -69,7 +103,9 @@ export async function deliverSidekickOutboxItem(sourceEventId: string): Promise<
   const attempts = Number(row.attempts || 0) + 1;
 
   try {
-    const result = await forwardWhatsAppToSidekick(row.payload);
+    const result = row.payload.kind === "email"
+      ? await forwardEmailToSidekick(row.payload.email)
+      : await forwardWhatsAppToSidekick(row.payload);
     if (result === "skipped") {
       await supabaseAdmin
         .from("sidekick_delivery_outbox")
