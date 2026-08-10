@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/ui-bits";
 import { commissionQualified, commissionAmount } from "@/lib/types";
 
@@ -9,12 +10,11 @@ export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard }
 type DashboardSupportTicket = {
   status?: string | null;
   severity?: string | null;
-  rep_id?: string | null;
-  assigned_rep_id?: string | null;
-  created_at?: string | null;
   opened_at?: string | null;
   sla_hours?: number | string | null;
 };
+
+type SupportDataStatus = "loading" | "ready" | "error";
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
@@ -46,42 +46,62 @@ function displayFirstName(fullName: string | null | undefined) {
 
 function Dashboard() {
   const { state, user } = useStore();
-  if (!user) return null;
+  const [supportTickets, setSupportTickets] = useState<DashboardSupportTicket[]>([]);
+  const [supportDataStatus, setSupportDataStatus] = useState<SupportDataStatus>("loading");
 
-  const isAdmin = user.role === "admin";
-  const firstName = displayFirstName(user.full_name);
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+
+    const loadSupportTickets = async () => {
+      setSupportDataStatus("loading");
+
+      const { data, error } = await supabase
+        .from("support_tickets")
+        .select("status,severity,opened_at,sla_hours");
+
+      if (!active) return;
+
+      if (error) {
+        console.error("[dashboard support tickets load]", error);
+        setSupportTickets([]);
+        setSupportDataStatus("error");
+        return;
+      }
+
+      setSupportTickets((data ?? []) as DashboardSupportTicket[]);
+      setSupportDataStatus("ready");
+    };
+
+    void loadSupportTickets();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const isAdmin = user?.role === "admin";
+  const userId = user?.id ?? "";
+  const firstName = displayFirstName(user?.full_name);
 
   // Scope data by role — DO NOT CHANGE SYSTEM LOGIC
   const leads = useMemo(
-    () => (isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === user.id)),
-    [state.leads, isAdmin, user.id],
+    () => (isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === userId)),
+    [state.leads, isAdmin, userId],
   );
 
   const meetings = useMemo(
-    () => (isAdmin ? state.meetings : state.meetings.filter((m) => m.rep_id === user.id)),
-    [state.meetings, isAdmin, user.id],
+    () => (isAdmin ? state.meetings : state.meetings.filter((m) => m.rep_id === userId)),
+    [state.meetings, isAdmin, userId],
   );
 
   const signups = useMemo(
-    () => (isAdmin ? state.signups : state.signups.filter((s) => s.rep_id === user.id)),
-    [state.signups, isAdmin, user.id],
+    () => (isAdmin ? state.signups : state.signups.filter((s) => s.rep_id === userId)),
+    [state.signups, isAdmin, userId],
   );
 
-  // Visual dashboard support counters only.
-  // This is defensive so the dashboard does not break if supportTickets is not in the store.
-  const stateWithOptionalTickets = state as typeof state & {
-    supportTickets?: DashboardSupportTicket[];
-  };
-
-  const supportTickets = useMemo(() => {
-    const allTickets = stateWithOptionalTickets.supportTickets ?? [];
-
-    if (isAdmin) return allTickets;
-
-    return allTickets.filter(
-      (ticket) => ticket.rep_id === user.id || ticket.assigned_rep_id === user.id,
-    );
-  }, [stateWithOptionalTickets.supportTickets, isAdmin, user.id]);
+  if (!user) return null;
 
   const repsActive = state.reps.filter((r) => r.active).length;
   const signedSchools = leads.filter((l) => ["Signed", "Paid", "Active"].includes(l.status)).length;
@@ -125,13 +145,13 @@ function Dashboard() {
   const openSupportTickets = supportTickets.filter((t) => t.status !== "Resolved").length;
 
   const highRiskTickets = supportTickets.filter(
-    (t) => t.severity === "HIGH" || t.severity === "CRITICAL",
+    (t) => t.status !== "Resolved" && (t.severity === "HIGH" || t.severity === "CRITICAL"),
   ).length;
 
   const overdueSlaTickets = supportTickets.filter((t) => {
     if (t.status === "Resolved") return false;
 
-    const startValue = t.opened_at || t.created_at;
+    const startValue = t.opened_at;
     if (!startValue) return false;
 
     const created = new Date(startValue).getTime();
@@ -146,6 +166,15 @@ function Dashboard() {
   const repById = (id: string) => state.reps.find((r) => r.id === id);
 
   const totalCommission = signups.reduce((sum, s) => sum + commissionAmount(s), 0);
+
+  const supportKpiValue = (value: number) => {
+    if (supportDataStatus === "loading") return "Loading…";
+    if (supportDataStatus === "error") return "Unavailable";
+    return value;
+  };
+
+  const supportKpiHint = (readyHint: string) =>
+    supportDataStatus === "error" ? "Support data unavailable" : readyHint;
 
   return (
     <div className="relative left-1/2 w-[min(1280px,calc(100vw-2rem))] -translate-x-1/2 space-y-6 pb-12">
@@ -231,9 +260,27 @@ function Dashboard() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardKpi icon="🎧" label="Open support" value={openSupportTickets} tone="info" hint="Clients awaiting response" />
-        <DashboardKpi icon="⚠️" label="High risk tickets" value={highRiskTickets} tone="warning" hint="At risk of SLA breach" />
-        <DashboardKpi icon="🔒" label="SLA breaches" value={overdueSlaTickets} tone="danger" hint="Past due SLA promises" />
+        <DashboardKpi
+          icon="🎧"
+          label="Open support"
+          value={supportKpiValue(openSupportTickets)}
+          tone="info"
+          hint={supportKpiHint("Clients awaiting response")}
+        />
+        <DashboardKpi
+          icon="⚠️"
+          label="High risk tickets"
+          value={supportKpiValue(highRiskTickets)}
+          tone="warning"
+          hint={supportKpiHint("At risk of SLA breach")}
+        />
+        <DashboardKpi
+          icon="🔒"
+          label="SLA breaches"
+          value={supportKpiValue(overdueSlaTickets)}
+          tone="danger"
+          hint={supportKpiHint("Past due SLA promises")}
+        />
         <DashboardKpi icon="🧲" label="Total leads" value={leads.length} tone="info" hint="Active pipeline" />
 
         <DashboardKpi icon="🗓️" label="Meetings scheduled" value={scheduled} tone="accent" />
