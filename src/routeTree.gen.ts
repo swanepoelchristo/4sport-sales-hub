@@ -22,9 +22,11 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiWhatsappInboxRouteImport } from './routes/api/whatsapp-inbox'
 import { Route as ApiWhatsappRouteImport } from './routes/api/whatsapp'
+import { Route as ApiSidekickOutboxRouteImport } from './routes/api/sidekick-outbox'
 import { Route as ApiMarketingLeadRouteImport } from './routes/api/marketing-lead'
 import { Route as ApiLeadResearchRouteImport } from './routes/api/lead-research'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiEmailIntakeRouteImport } from './routes/api/email-intake'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as AppSystemCheckRouteImport } from './routes/_app.system-check'
 import { Route as AppSupportRouteImport } from './routes/_app.support'
@@ -106,6 +108,11 @@ const ApiWhatsappRoute = ApiWhatsappRouteImport.update({
   path: '/api/whatsapp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSidekickOutboxRoute = ApiSidekickOutboxRouteImport.update({
+  id: '/api/sidekick-outbox',
+  path: '/api/sidekick-outbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMarketingLeadRoute = ApiMarketingLeadRouteImport.update({
   id: '/api/marketing-lead',
   path: '/api/marketing-lead',
@@ -119,6 +126,11 @@ const ApiLeadResearchRoute = ApiLeadResearchRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEmailIntakeRoute = ApiEmailIntakeRouteImport.update({
+  id: '/api/email-intake',
+  path: '/api/email-intake',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWhatsappRoute = AppWhatsappRouteImport.update({
@@ -221,9 +233,11 @@ export interface FileRoutesByFullPath {
   '/support': typeof AppSupportRoute
   '/system-check': typeof AppSystemCheckRoute
   '/whatsapp': typeof AppWhatsappRoute
+  '/api/email-intake': typeof ApiEmailIntakeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lead-research': typeof ApiLeadResearchRoute
   '/api/marketing-lead': typeof ApiMarketingLeadRoute
+  '/api/sidekick-outbox': typeof ApiSidekickOutboxRoute
   '/api/whatsapp': typeof ApiWhatsappRoute
   '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
@@ -253,9 +267,11 @@ export interface FileRoutesByTo {
   '/support': typeof AppSupportRoute
   '/system-check': typeof AppSystemCheckRoute
   '/whatsapp': typeof AppWhatsappRoute
+  '/api/email-intake': typeof ApiEmailIntakeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lead-research': typeof ApiLeadResearchRoute
   '/api/marketing-lead': typeof ApiMarketingLeadRoute
+  '/api/sidekick-outbox': typeof ApiSidekickOutboxRoute
   '/api/whatsapp': typeof ApiWhatsappRoute
   '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/leads/$leadId': typeof AppLeadsLeadIdRoute
@@ -287,9 +303,11 @@ export interface FileRoutesById {
   '/_app/support': typeof AppSupportRoute
   '/_app/system-check': typeof AppSystemCheckRoute
   '/_app/whatsapp': typeof AppWhatsappRoute
+  '/api/email-intake': typeof ApiEmailIntakeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lead-research': typeof ApiLeadResearchRoute
   '/api/marketing-lead': typeof ApiMarketingLeadRoute
+  '/api/sidekick-outbox': typeof ApiSidekickOutboxRoute
   '/api/whatsapp': typeof ApiWhatsappRoute
   '/api/whatsapp-inbox': typeof ApiWhatsappInboxRoute
   '/_app/leads/$leadId': typeof AppLeadsLeadIdRoute
@@ -321,9 +339,11 @@ export interface FileRouteTypes {
     | '/support'
     | '/system-check'
     | '/whatsapp'
+    | '/api/email-intake'
     | '/api/health'
     | '/api/lead-research'
     | '/api/marketing-lead'
+    | '/api/sidekick-outbox'
     | '/api/whatsapp'
     | '/api/whatsapp-inbox'
     | '/leads/$leadId'
@@ -353,9 +373,11 @@ export interface FileRouteTypes {
     | '/support'
     | '/system-check'
     | '/whatsapp'
+    | '/api/email-intake'
     | '/api/health'
     | '/api/lead-research'
     | '/api/marketing-lead'
+    | '/api/sidekick-outbox'
     | '/api/whatsapp'
     | '/api/whatsapp-inbox'
     | '/leads/$leadId'
@@ -386,9 +408,11 @@ export interface FileRouteTypes {
     | '/_app/support'
     | '/_app/system-check'
     | '/_app/whatsapp'
+    | '/api/email-intake'
     | '/api/health'
     | '/api/lead-research'
     | '/api/marketing-lead'
+    | '/api/sidekick-outbox'
     | '/api/whatsapp'
     | '/api/whatsapp-inbox'
     | '/_app/leads/$leadId'
@@ -407,9 +431,11 @@ export interface RootRouteChildren {
   RefundCancellationPolicyRoute: typeof RefundCancellationPolicyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsAndConditionsRoute: typeof TermsAndConditionsRoute
+  ApiEmailIntakeRoute: typeof ApiEmailIntakeRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLeadResearchRoute: typeof ApiLeadResearchRoute
   ApiMarketingLeadRoute: typeof ApiMarketingLeadRoute
+  ApiSidekickOutboxRoute: typeof ApiSidekickOutboxRoute
   ApiWhatsappRoute: typeof ApiWhatsappRoute
   ApiWhatsappInboxRoute: typeof ApiWhatsappInboxRoute
 }
@@ -507,6 +533,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sidekick-outbox': {
+      id: '/api/sidekick-outbox'
+      path: '/api/sidekick-outbox'
+      fullPath: '/api/sidekick-outbox'
+      preLoaderRoute: typeof ApiSidekickOutboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/marketing-lead': {
       id: '/api/marketing-lead'
       path: '/api/marketing-lead'
@@ -526,6 +559,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/email-intake': {
+      id: '/api/email-intake'
+      path: '/api/email-intake'
+      fullPath: '/api/email-intake'
+      preLoaderRoute: typeof ApiEmailIntakeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/whatsapp': {
@@ -696,9 +736,11 @@ const rootRouteChildren: RootRouteChildren = {
   RefundCancellationPolicyRoute: RefundCancellationPolicyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsAndConditionsRoute: TermsAndConditionsRoute,
+  ApiEmailIntakeRoute: ApiEmailIntakeRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiLeadResearchRoute: ApiLeadResearchRoute,
   ApiMarketingLeadRoute: ApiMarketingLeadRoute,
+  ApiSidekickOutboxRoute: ApiSidekickOutboxRoute,
   ApiWhatsappRoute: ApiWhatsappRoute,
   ApiWhatsappInboxRoute: ApiWhatsappInboxRoute,
 }
