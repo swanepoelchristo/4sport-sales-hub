@@ -210,7 +210,7 @@ export async function forwardEmailToSidekick(email: SalesHubEmailMessage): Promi
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      source: "email",
+      source: email.mailbox === "gmail" ? "gmail" : "afrihost_email",
       sourceEventId: email.sourceEventId,
       occurredAt: email.occurredAt,
       sender: {
