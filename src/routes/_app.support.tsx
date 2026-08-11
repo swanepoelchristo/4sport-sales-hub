@@ -142,6 +142,10 @@ function SupportPage() {
 
   if (!user) return null;
 
+  const staffOptions = ["Unassigned", user.full_name, ...state.reps.map((rep) => rep.full_name)].filter(
+    (name, index, names) => names.indexOf(name) === index,
+  );
+
   const signupById = (id: string | null) => state.signups.find((s) => s.id === id);
   const leadById = (id: string | null) => state.leads.find((l) => l.id === id);
 
@@ -403,7 +407,7 @@ function SupportPage() {
           value={currentStaff}
           onChange={(e) => setCurrentStaff(e.target.value)}
         >
-          {["Unassigned", user.full_name, ...state.reps.map((rep) => rep.full_name)].filter((name, index, names) => names.indexOf(name) === index).map((name) => (
+          {staffOptions.map((name) => (
             <option key={name} value={name}>
               {name}
             </option>
@@ -671,14 +675,14 @@ function SupportPage() {
                       label="Assigned to"
                       value={t.assigned_to_name ?? "Unassigned"}
                       onChange={(value) => updateTicket(t.id, { assigned_to_name: value } as Partial<Ticket>)}
-                      options={STAFF_OPTIONS}
+                      options={staffOptions}
                     />
 
                     <TicketSelect
                       label="Handled by"
                       value={t.handled_by_name ?? "Unassigned"}
                       onChange={(value) => updateTicket(t.id, { handled_by_name: value } as Partial<Ticket>)}
-                      options={STAFF_OPTIONS}
+                      options={staffOptions}
                     />
 
                     <div>
