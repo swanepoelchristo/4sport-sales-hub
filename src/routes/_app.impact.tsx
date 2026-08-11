@@ -97,9 +97,9 @@ const sponsorPackages = [
 ];
 
 function statusClass(status: ChecklistItem["status"]) {
-  if (status === "Ready") return "border-emerald-400/40 bg-emerald-400/10 text-emerald-200";
-  if (status === "Draft") return "border-cyan-400/40 bg-cyan-400/10 text-cyan-200";
-  return "border-amber-400/40 bg-amber-400/10 text-amber-200";
+  if (status === "Ready") return "border-emerald-300 bg-emerald-50 text-emerald-800";
+  if (status === "Draft") return "border-cyan-300 bg-cyan-50 text-cyan-800";
+  return "border-amber-300 bg-amber-50 text-amber-800";
 }
 
 function ImpactWarRoom() {
@@ -118,39 +118,39 @@ function ImpactWarRoom() {
             sponsorship packages, and international funding readiness.
           </p>
         </div>
-        <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+        <div className="rounded-2xl border border-cyan-300 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
           Current proof event: <span className="font-semibold">53-school hockey tournament</span>
         </div>
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {metrics.map((metric) => (
-          <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-xl">
+          <div key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="rounded-xl bg-cyan-400/10 p-3 text-cyan-200">
+              <div className="rounded-xl bg-cyan-50 p-3 text-cyan-700">
                 <metric.icon className="h-5 w-5" />
               </div>
-              <ShieldCheck className="h-5 w-5 text-emerald-300/80" />
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
             </div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{metric.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-white">{metric.value}</p>
-            <p className="mt-2 text-sm text-slate-300">{metric.detail}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{metric.label}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">{metric.value}</p>
+            <p className="mt-2 text-sm text-slate-600">{metric.detail}</p>
           </div>
         ))}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-xl">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-white">Tournament Impact Tracker</h2>
-              <p className="text-sm text-slate-400">First version is static proof capture. Supabase wiring comes next.</p>
+              <h2 className="text-lg font-semibold text-slate-950">Tournament Impact Tracker</h2>
+              <p className="text-sm text-slate-600">First version is static proof capture. Supabase wiring comes next.</p>
             </div>
-            <HeartPulse className="h-5 w-5 text-cyan-200" />
+            <HeartPulse className="h-5 w-5 text-cyan-700" />
           </div>
-          <div className="overflow-hidden rounded-xl border border-white/10">
+          <div className="overflow-hidden rounded-xl border border-slate-200">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-white/[0.06] text-xs uppercase tracking-[0.18em] text-slate-400">
+              <thead className="bg-slate-100 text-xs uppercase tracking-[0.18em] text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Tournament</th>
                   <th className="px-4 py-3">Sport</th>
@@ -159,25 +159,25 @@ function ImpactWarRoom() {
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10 text-slate-200">
+              <tbody className="divide-y divide-slate-200 text-slate-700">
                 <tr>
-                  <td className="px-4 py-4 font-medium text-white">Primary Schools Hockey Tournament</td>
+                  <td className="px-4 py-4 font-medium text-slate-950">Primary Schools Hockey Tournament</td>
                   <td className="px-4 py-4">Hockey</td>
                   <td className="px-4 py-4">53</td>
                   <td className="px-4 py-4">PDF reports emailed</td>
-                  <td className="px-4 py-4"><span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">Launch week</span></td>
+                  <td className="px-4 py-4"><span className="rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs text-cyan-800">Launch week</span></td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-xl">
-          <h2 className="mb-4 text-lg font-semibold text-white">Investor Pack Checklist</h2>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+          <h2 className="mb-4 text-lg font-semibold text-slate-950">Investor Pack Checklist</h2>
           <div className="space-y-3">
             {checklist.map((item) => (
-              <div key={item.name} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/10 px-4 py-3">
-                <span className="text-sm text-slate-200">{item.name}</span>
+              <div key={item.name} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <span className="text-sm text-slate-700">{item.name}</span>
                 <span className={`rounded-full border px-3 py-1 text-xs ${statusClass(item.status)}`}>{item.status}</span>
               </div>
             ))}
@@ -186,35 +186,35 @@ function ImpactWarRoom() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-xl">
-          <h2 className="mb-4 text-lg font-semibold text-white">International Funding Pipeline</h2>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+          <h2 className="mb-4 text-lg font-semibold text-slate-950">International Funding Pipeline</h2>
           <div className="space-y-3">
             {fundingOpportunities.map((opportunity) => (
-              <div key={opportunity.name} className="rounded-xl border border-white/10 bg-black/10 p-4">
+              <div key={opportunity.name} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-medium text-white">{opportunity.name}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{opportunity.type} · {opportunity.region}</p>
+                    <p className="font-medium text-slate-950">{opportunity.name}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{opportunity.type} · {opportunity.region}</p>
                   </div>
-                  <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">Fit: {opportunity.fit}</span>
+                  <span className="rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs text-cyan-800">Fit: {opportunity.fit}</span>
                 </div>
-                <p className="mt-3 text-sm text-slate-300">Status: {opportunity.status}</p>
-                <p className="mt-1 text-sm text-slate-400">Next: {opportunity.next}</p>
+                <p className="mt-3 text-sm text-slate-700">Status: {opportunity.status}</p>
+                <p className="mt-1 text-sm text-slate-600">Next: {opportunity.next}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-xl">
-          <h2 className="mb-4 text-lg font-semibold text-white">Sponsor-a-School Packages</h2>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+          <h2 className="mb-4 text-lg font-semibold text-slate-950">Sponsor-a-School Packages</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {sponsorPackages.map((pkg) => (
-              <div key={pkg.title} className="rounded-xl border border-white/10 bg-black/10 p-4">
-                <Users className="mb-3 h-5 w-5 text-cyan-200" />
-                <p className="font-medium text-white">{pkg.title}</p>
-                <p className="mt-2 text-sm text-slate-300">Schools: {pkg.schools}</p>
+              <div key={pkg.title} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <Users className="mb-3 h-5 w-5 text-cyan-700" />
+                <p className="font-medium text-slate-950">{pkg.title}</p>
+                <p className="mt-2 text-sm text-slate-600">Schools: {pkg.schools}</p>
                 <p className="text-sm text-slate-300">Estimated learners: {pkg.learners}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{pkg.use}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{pkg.use}</p>
               </div>
             ))}
           </div>
