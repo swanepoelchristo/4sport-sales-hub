@@ -122,7 +122,7 @@ function Dashboard() {
     .slice(0, 6);
 
   const followUps = leads
-    .filter((l) => l.next_follow_up && new Date(l.next_follow_up) >= today)
+    .filter((l) => l.next_follow_up)
     .sort((a, b) => +new Date(a.next_follow_up!) - +new Date(b.next_follow_up!))
     .slice(0, 6);
 
