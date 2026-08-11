@@ -142,15 +142,15 @@ function SignupsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-blue-700">
             4SPORT Sales Hub
           </p>
 
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
             Signups & commission
           </h1>
 
-          <p className="mt-2 text-sm text-slate-300">
+          <p className="mt-2 text-sm text-slate-600">
             Track signed schools, payments, support packages and commission qualification.
           </p>
         </div>

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Logo } from "./Logo";
 import { IdleTimer } from "./IdleTimer";
+import mascot from "@/assets/4sport-whistle-mascot.webp";
 import {
   LayoutDashboard,
   Calendar,
@@ -118,6 +119,17 @@ export function AppLayout() {
         )}
         <Outlet />
       </main>
+
+      <div
+        className="pointer-events-none fixed bottom-20 right-3 z-20 flex h-24 w-24 items-end justify-center overflow-hidden rounded-full border border-blue-200/80 bg-white/90 shadow-xl shadow-blue-950/15 backdrop-blur md:bottom-5 md:right-5 md:h-36 md:w-36"
+        aria-hidden="true"
+      >
+        <img
+          src={mascot}
+          alt=""
+          className="h-[112%] w-[112%] translate-y-2 object-contain drop-shadow-md"
+        />
+      </div>
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur md:hidden">
