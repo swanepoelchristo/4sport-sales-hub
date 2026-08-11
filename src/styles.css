@@ -39,35 +39,35 @@
 
 :root {
   --radius: 0.75rem;
-  /* 4SPORT brand: deep navy + cyan/blue accents */
-  --background: oklch(0.18 0.05 260);
-  --foreground: oklch(0.97 0.01 240);
-  --card: oklch(0.23 0.05 260);
-  --card-foreground: oklch(0.97 0.01 240);
-  --popover: oklch(0.23 0.05 260);
-  --popover-foreground: oklch(0.97 0.01 240);
-  --primary: oklch(0.75 0.16 220);
-  --primary-foreground: oklch(0.15 0.05 260);
-  --secondary: oklch(0.28 0.04 260);
-  --secondary-foreground: oklch(0.97 0.01 240);
-  --muted: oklch(0.27 0.03 260);
-  --muted-foreground: oklch(0.7 0.02 250);
-  --accent: oklch(0.65 0.18 200);
-  --accent-foreground: oklch(0.15 0.05 260);
+  /* Bright 4SPORT workspace: clean white surfaces + confident blue accents. */
+  --background: oklch(0.965 0.018 235);
+  --foreground: oklch(0.25 0.045 255);
+  --card: oklch(0.995 0.004 240);
+  --card-foreground: oklch(0.25 0.045 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.045 255);
+  --primary: oklch(0.62 0.18 240);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.94 0.025 235);
+  --secondary-foreground: oklch(0.29 0.055 255);
+  --muted: oklch(0.94 0.018 240);
+  --muted-foreground: oklch(0.49 0.035 255);
+  --accent: oklch(0.72 0.16 210);
+  --accent-foreground: oklch(0.22 0.05 255);
   --destructive: oklch(0.62 0.22 25);
   --destructive-foreground: oklch(0.98 0 0);
   --success: oklch(0.7 0.16 160);
   --success-foreground: oklch(0.15 0.05 260);
   --warning: oklch(0.78 0.15 75);
   --warning-foreground: oklch(0.15 0.05 260);
-  --border: oklch(0.32 0.04 260);
-  --input: oklch(0.28 0.04 260);
-  --ring: oklch(0.75 0.16 220);
+  --border: oklch(0.86 0.03 240);
+  --input: oklch(0.89 0.025 240);
+  --ring: oklch(0.62 0.18 240);
 }
 
 .dark {
-  --background: oklch(0.18 0.05 260);
-  --foreground: oklch(0.97 0.01 240);
+  --background: oklch(0.965 0.018 235);
+  --foreground: oklch(0.25 0.045 255);
 }
 
 @layer base {
@@ -78,12 +78,14 @@
 
 @layer utilities {
   .brand-gradient-text {
-    background: linear-gradient(90deg, oklch(0.75 0.16 220), oklch(0.78 0.14 195), oklch(0.85 0.1 180));
+    background: linear-gradient(90deg, oklch(0.48 0.2 250), oklch(0.59 0.18 225), oklch(0.58 0.15 195));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
   .brand-gradient-bg {
-    background: linear-gradient(135deg, oklch(0.22 0.06 265), oklch(0.18 0.05 260) 60%, oklch(0.15 0.04 255));
+    background:
+      radial-gradient(circle at 8% 3%, oklch(0.9 0.07 215 / 0.75), transparent 34rem),
+      linear-gradient(145deg, oklch(0.985 0.01 225), oklch(0.94 0.035 235) 58%, oklch(0.97 0.02 210));
   }
 }
