@@ -188,10 +188,11 @@ function LeadsPage() {
             {isAdmin && (
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-semibold"
-                title="Manual CSV import comes later in PR scope."
+                disabled
+                className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-semibold opacity-60"
+                title="Lead import is not available yet."
               >
-                <Upload className="h-4 w-4" /> Import leads
+                <Upload className="h-4 w-4" /> Import unavailable
               </button>
             )}
 

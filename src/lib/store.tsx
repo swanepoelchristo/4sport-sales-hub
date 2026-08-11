@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
+  createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { pushAuthEvent } from "./auth-debug";
@@ -35,6 +35,10 @@ interface Ctx {
   user: Profile | null;
   loading: boolean;
   finalizing: boolean;
+  dataError: string | null;
+  mutationError: string | null;
+  clearMutationError: () => void;
+  reloadData: () => Promise<void>;
   login: (email: string, password: string) => Promise<Profile | { error: string }>;
   retryProfileLoad: () => Promise<Profile | { error: string }>;
   logout: () => Promise<void>;
@@ -249,7 +253,7 @@ async function syncTable<T extends { id: string }>(
 
   if (upserts.length) {
     const { error } = await supabase.from(table).upsert(upserts);
-    if (error) console.error(`[sync ${table} upsert]`, error);
+    if (error) throw new Error(`${table} could not be saved: ${error.message}`);
   }
   if (archives.length) {
     const { data: { user: au } } = await supabase.auth.getUser();
@@ -257,7 +261,7 @@ async function syncTable<T extends { id: string }>(
       .from(table)
       .update({ archived: true, deleted_at: new Date().toISOString(), deleted_by: au?.id ?? null })
       .in("id", archives);
-    if (error) console.error(`[sync ${table} archive]`, error);
+    if (error) throw new Error(`${table} could not be archived: ${error.message}`);
   }
 }
 
@@ -333,9 +337,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
-  const stateRef = useRef(state);
-  stateRef.current = state;
-
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const loadAll = useCallback(async (profile: Profile) => {
     const [reps, leads, meetings, signups, activity, callCenterAgents, leadActivity, leadCandidates] = await Promise.all([
       supabase.from("reps").select("*").eq("archived", false).order("full_name"),
@@ -347,6 +350,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       (supabase as any).from("lead_activity").select("*").order("created_at", { ascending: false }).limit(1000),
       (supabase as any).from("lead_candidates").select("*").order("created_at", { ascending: false }).limit(1000),
     ]);
+    const failed = [reps, leads, meetings, signups, activity, callCenterAgents, leadActivity, leadCandidates]
+      .find((result) => result.error);
+    if (failed?.error) {
+      setDataError(`Sales Hub data unavailable: ${failed.error.message}`);
+      return false;
+    }
+    setDataError(null);
     setStateInner({
       reps: (reps.data ?? []).map(repFromRow),
       leads: (leads.data ?? []).map(leadFromRow),
@@ -361,6 +371,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const mine = (reps.data ?? []).find((r: any) => r.user_id === profile.auth_id);
       if (mine) setUser({ ...profile, id: mine.id });
     }
+    return true;
   }, []);
 
   // Returns: Profile (success) | "empty" (auth ok but profile row not returned) | null (no session)
@@ -498,14 +509,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setState = useCallback((updater: (s: State) => State) => {
     setStateInner((prev) => {
       const next = updater(prev);
-      // Fire-and-forget DB sync for the four mutable tables
-      void syncTable("reps", prev.reps, next.reps, repToRow);
-      void syncTable("leads", prev.leads, next.leads, leadToRow);
-      void syncTable("meetings", prev.meetings, next.meetings, meetingToRow);
-      void syncTable("signups", prev.signups, next.signups, signupToRow);
+      setMutationError(null);
+      void Promise.all([
+        syncTable("reps", prev.reps, next.reps, repToRow),
+        syncTable("leads", prev.leads, next.leads, leadToRow),
+        syncTable("meetings", prev.meetings, next.meetings, meetingToRow),
+        syncTable("signups", prev.signups, next.signups, signupToRow),
+      ]).catch((error) => {
+        setMutationError(error instanceof Error ? error.message : "Changes could not be saved.");
+        // Revert only if no newer local change has replaced this state.
+        setStateInner((current) => current === next ? prev : current);
+      });
       return next;
     });
   }, []);
+
+  const reloadData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      await loadAll(user);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, loadAll]);
 
   const login = useCallback(async (email: string, password: string): Promise<Profile | { error: string }> => {
     // Clear any stale recovery / partial session before signing in.
@@ -564,7 +591,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <StoreContext.Provider value={{ state, user, loading, finalizing, login, retryProfileLoad, logout, setState, addActivity, uid }}>
+    <StoreContext.Provider value={{
+      state, user, loading, finalizing, dataError, mutationError,
+      clearMutationError: () => setMutationError(null), reloadData,
+      login, retryProfileLoad, logout, setState, addActivity, uid,
+    }}>
       {children}
     </StoreContext.Provider>
   );

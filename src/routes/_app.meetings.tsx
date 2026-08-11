@@ -70,6 +70,13 @@ function MeetingsPage() {
     setForm(initialForm);
   };
 
+  const updateMeeting = (id: string, patch: Partial<Meeting>) => {
+    setState((current) => ({
+      ...current,
+      meetings: current.meetings.map((meeting) => meeting.id === id ? { ...meeting, ...patch } : meeting),
+    }));
+  };
+
   const visibleLeads = isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === user.id);
 
   const scheduledCount = meetings.filter((m) => m.status === "Scheduled").length;
@@ -371,11 +378,24 @@ function MeetingsPage() {
                     <td className="px-5 py-4">{m.meeting_type}</td>
 
                     <td className="px-5 py-4">
-                      <StatusBadge tone={tone(m.status)}>{m.status}</StatusBadge>
+                      <select
+                        aria-label={`Status for ${leadById(m.lead_id)?.org_name ?? "meeting"}`}
+                        value={m.status}
+                        onChange={(event) => updateMeeting(m.id, { status: event.target.value as MeetingStatus })}
+                        className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold"
+                      >
+                        {M_STATUSES.map((meetingStatus) => <option key={meetingStatus}>{meetingStatus}</option>)}
+                      </select>
                     </td>
 
                     <td className="px-5 py-4 text-xs font-medium text-slate-600">
-                      {m.next_action || "—"}
+                      <input
+                        aria-label={`Next action for ${leadById(m.lead_id)?.org_name ?? "meeting"}`}
+                        defaultValue={m.next_action}
+                        placeholder="Next action"
+                        onBlur={(event) => updateMeeting(m.id, { next_action: event.target.value.trim() })}
+                        className="w-full min-w-32 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1"
+                      />
                     </td>
                   </tr>
                 ))}
@@ -395,7 +415,14 @@ function MeetingsPage() {
                     </p>
                   </div>
 
-                  <StatusBadge tone={tone(m.status)}>{m.status}</StatusBadge>
+                  <select
+                    aria-label={`Status for ${leadById(m.lead_id)?.org_name ?? "meeting"}`}
+                    value={m.status}
+                    onChange={(event) => updateMeeting(m.id, { status: event.target.value as MeetingStatus })}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-900"
+                  >
+                    {M_STATUSES.map((meetingStatus) => <option key={meetingStatus}>{meetingStatus}</option>)}
+                  </select>
                 </div>
 
                 {m.outcome_notes && (
@@ -409,6 +436,22 @@ function MeetingsPage() {
                     Next: {m.next_action}
                   </p>
                 )}
+                <label className="mt-3 block text-xs font-semibold text-slate-600">
+                  Outcome notes
+                  <textarea
+                    defaultValue={m.outcome_notes}
+                    onBlur={(event) => updateMeeting(m.id, { outcome_notes: event.target.value.trim() })}
+                    className={`${inp} mt-1 min-h-20`}
+                  />
+                </label>
+                <label className="mt-3 block text-xs font-semibold text-slate-600">
+                  Next action
+                  <input
+                    defaultValue={m.next_action}
+                    onBlur={(event) => updateMeeting(m.id, { next_action: event.target.value.trim() })}
+                    className={`${inp} mt-1`}
+                  />
+                </label>
               </li>
             ))}
           </ul>

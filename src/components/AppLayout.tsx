@@ -39,7 +39,7 @@ const NAV: NavItem[] = [
 ];
 
 export function AppLayout() {
-  const { user, logout } = useStore();
+  const { user, logout, dataError, mutationError, clearMutationError, reloadData } = useStore();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
@@ -100,19 +100,35 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-28 md:pb-10">
+        {dataError && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <span>{dataError}</span>
+            <button type="button" onClick={() => void reloadData()} className="rounded-lg border border-destructive/40 px-3 py-1.5 font-semibold">
+              Retry
+            </button>
+          </div>
+        )}
+        {mutationError && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <span>Save failed. Your last change was not confirmed. {mutationError}</span>
+            <button type="button" onClick={clearMutationError} className="rounded-lg border border-destructive/40 px-3 py-1.5 font-semibold">
+              Dismiss
+            </button>
+          </div>
+        )}
         <Outlet />
       </main>
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-7xl grid-cols-5">
-          {items.slice(0, 5).map((n) => {
+        <div className="mx-auto flex max-w-7xl overflow-x-auto">
+          {items.map((n) => {
             const active = path.startsWith(n.to);
             return (
               <Link
                 key={n.to}
                 to={n.to}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${
+                className={`flex min-w-[72px] flex-1 flex-col items-center gap-1 px-2 py-2.5 text-[10px] font-medium ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
               >

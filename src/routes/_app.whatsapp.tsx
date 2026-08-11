@@ -41,14 +41,22 @@ function WhatsAppInboxPage() {
   const [testNumber, setTestNumber] = useState("27821234567");
   const [testMessage, setTestMessage] = useState("We need help on game day. No technical person is next to the field.");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [threadNumber, setThreadNumber] = useState<string | null>(null);
 
   async function loadMessages() {
+    setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch("/api/whatsapp-inbox");
       const data = await res.json();
-      setMessages(data || []);
+      if (!res.ok || !Array.isArray(data)) throw new Error(data?.error || "WhatsApp data unavailable");
+      setMessages(data);
     } catch (err) {
-      console.error(err);
+      setLoadError(err instanceof Error ? err.message : "WhatsApp data unavailable");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -57,7 +65,7 @@ function WhatsAppInboxPage() {
   }, []);
 
   async function createTestMessage() {
-    await fetch("/api/whatsapp-inbox", {
+    const response = await fetch("/api/whatsapp-inbox", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -67,21 +75,54 @@ function WhatsAppInboxPage() {
         message_text: testMessage,
       }),
     });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      alert(data?.error || "Could not create test message");
+      return;
+    }
 
     await loadMessages();
   }
 
   async function updateMessage(id: string, patch: Partial<InboxItem>) {
-    await fetch("/api/whatsapp-inbox", {
+    const response = await fetch("/api/whatsapp-inbox", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ id, patch }),
     });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      alert(data?.error || "Could not update WhatsApp message");
+      return;
+    }
 
     await loadMessages();
   }
+
+  async function createSalesLead(msg: InboxItem) {
+    setBusyId(msg.id);
+    try {
+      const response = await fetch("/api/whatsapp-inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "create_sales_lead", message: msg }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        alert(data?.error || "Could not create sales lead");
+        return;
+      }
+      await loadMessages();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const displayedMessages = threadNumber
+    ? messages.filter((message) => message.from_number === threadNumber)
+    : messages;
 
   async function createSupportTicket(msg: InboxItem) {
     setBusyId(msg.id);
@@ -197,6 +238,14 @@ function WhatsAppInboxPage() {
       </div>
 
       {/* Stats */}
+      {loading ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-600">Loading WhatsApp data…</div>
+      ) : loadError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700">
+          <span>{loadError}</span>
+          <button type="button" onClick={() => void loadMessages()} className="rounded-xl border border-red-300 px-4 py-2">Retry</button>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <MiniStat icon={<MessageCircle className="h-5 w-5" />} label="Messages" value={messages.length} tone="info" />
         <MiniStat icon={<Inbox className="h-5 w-5" />} label="New" value={newCount} tone="warning" />
@@ -267,17 +316,22 @@ function WhatsAppInboxPage() {
             <div>
               <h2 className="font-display text-lg font-semibold text-slate-950">Inbox queue</h2>
               <p className="text-sm text-slate-600">
-                Showing {messages.length} WhatsApp message{messages.length === 1 ? "" : "s"}.
+                Showing {displayedMessages.length} WhatsApp message{displayedMessages.length === 1 ? "" : "s"}.
               </p>
             </div>
           </div>
+          {threadNumber && (
+            <button type="button" onClick={() => setThreadNumber(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+              Show all messages
+            </button>
+          )}
         </div>
 
-        {messages.length === 0 ? (
+        {!loading && !loadError && displayedMessages.length === 0 ? (
           <EmptyPanel icon="💬" title="No WhatsApp messages yet." subtitle="Incoming messages and test messages will appear here." />
         ) : (
           <div className="space-y-3">
-            {messages.map((msg) => (
+            {displayedMessages.map((msg) => (
               <article
                 key={msg.id}
                 className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-cyan-950/10 transition hover:border-cyan-300 hover:shadow-2xl"
@@ -334,16 +388,12 @@ function WhatsAppInboxPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      updateMessage(msg.id, {
-                        category: "Rep",
-                        status: "Assigned",
-                      })
-                    }
+                    onClick={() => createSalesLead(msg)}
+                    disabled={busyId === msg.id}
                     className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50"
                   >
                     <UserCheck className="h-4 w-4" />
-                    Assign Rep
+                    {busyId === msg.id ? "Creating…" : "Create Sales Lead"}
                   </button>
 
                   <button
@@ -359,13 +409,14 @@ function WhatsAppInboxPage() {
                     Resolved
                   </button>
 
-                  <a
-                    href={`/whatsapp/thread/${msg.from_number}`}
+                  <button
+                    type="button"
+                    onClick={() => setThreadNumber(msg.from_number)}
                     className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50"
                   >
                     <ExternalLink className="h-4 w-4" />
                     View thread
-                  </a>
+                  </button>
                 </div>
               </article>
             ))}
@@ -449,4 +500,3 @@ function EmptyPanel({
     </div>
   );
 }
-

@@ -63,7 +63,6 @@ const CATEGORIES = [
 
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const STATUSES = ["Open", "In Progress", "Resolved"];
-const STAFF_OPTIONS = ["Unassigned", "Christo", "Mariaan", "Support 1", "Game Day Ops"];
 const QUEUE_TYPES = ["All", "Support", "Sales", "Game Day Ops", "Billing", "General"];
 
 const nowIso = () => new Date().toISOString();
@@ -128,7 +127,9 @@ function SupportPage() {
   const [activitiesByTicket, setActivitiesByTicket] = useState<Record<string, TicketActivity[]>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [currentStaff, setCurrentStaff] = useState("Christo");
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketsError, setTicketsError] = useState<string | null>(null);
+  const [currentStaff, setCurrentStaff] = useState(user?.full_name ?? "Unassigned");
   const [queueFilter, setQueueFilter] = useState("All");
   const [form, setForm] = useState({
     signup_id: state.signups[0]?.id ?? "",
@@ -145,13 +146,16 @@ function SupportPage() {
   const leadById = (id: string | null) => state.leads.find((l) => l.id === id);
 
   const loadTickets = async () => {
+    setTicketsLoading(true);
+    setTicketsError(null);
     const { data, error } = await supabase
       .from("support_tickets")
       .select("*")
       .order("opened_at", { ascending: false });
 
     if (error) {
-      console.error("[support tickets load]", error);
+      setTicketsError("Support data unavailable");
+      setTicketsLoading(false);
       return;
     }
 
@@ -171,6 +175,7 @@ function SupportPage() {
     const ticketIds = loadedTickets.map((ticket) => ticket.id);
     if (ticketIds.length === 0) {
       setActivitiesByTicket({});
+      setTicketsLoading(false);
       return;
     }
 
@@ -181,7 +186,8 @@ function SupportPage() {
       .order("created_at", { ascending: false });
 
     if (activityError) {
-      console.error("[support ticket activity load]", activityError);
+      setTicketsError("Support activity unavailable");
+      setTicketsLoading(false);
       return;
     }
 
@@ -191,6 +197,7 @@ function SupportPage() {
       grouped[item.ticket_id].push(item);
     }
     setActivitiesByTicket(grouped);
+    setTicketsLoading(false);
   };
 
   useEffect(() => {
@@ -288,6 +295,7 @@ function SupportPage() {
 
       if (activityError) {
         console.error("[support ticket activity insert]", activityError);
+        alert("Ticket was updated, but its activity history could not be recorded. Please notify an administrator.");
       }
     }
 
@@ -360,11 +368,20 @@ function SupportPage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MiniStat icon={<Inbox className="h-5 w-5" />} label="Open" value={openCount} tone="info" />
-        <MiniStat icon={<ShieldAlert className="h-5 w-5" />} label="High risk" value={highRisk} tone="danger" />
-        <MiniStat icon={<Clock className="h-5 w-5" />} label="Overdue SLA" value={overdue} tone="warning" />
-      </div>
+      {ticketsLoading ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-600">Loading support data…</div>
+      ) : ticketsError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-700">
+          <span>{ticketsError}</span>
+          <button type="button" onClick={() => void loadTickets()} className="rounded-xl border border-red-300 px-4 py-2">Retry</button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <MiniStat icon={<Inbox className="h-5 w-5" />} label="Open" value={openCount} tone="info" />
+          <MiniStat icon={<ShieldAlert className="h-5 w-5" />} label="High risk" value={highRisk} tone="danger" />
+          <MiniStat icon={<Clock className="h-5 w-5" />} label="Overdue SLA" value={overdue} tone="warning" />
+        </div>
+      )}
 
       {/* Staff selector */}
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl shadow-cyan-950/25">
@@ -386,7 +403,7 @@ function SupportPage() {
           value={currentStaff}
           onChange={(e) => setCurrentStaff(e.target.value)}
         >
-          {STAFF_OPTIONS.map((name) => (
+          {["Unassigned", user.full_name, ...state.reps.map((rep) => rep.full_name)].filter((name, index, names) => names.indexOf(name) === index).map((name) => (
             <option key={name} value={name}>
               {name}
             </option>
@@ -517,9 +534,9 @@ function SupportPage() {
       </form>
 
       {/* Ticket queue */}
-      {visibleTickets.length === 0 ? (
+      {!ticketsLoading && !ticketsError && visibleTickets.length === 0 ? (
         <EmptyPanel icon="🎧" title="No support tickets in this queue." subtitle="Use the queue filter or open a new ticket." />
-      ) : (
+      ) : !ticketsLoading && !ticketsError ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl shadow-cyan-950/25">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -774,7 +791,7 @@ function SupportPage() {
             })}
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -901,4 +918,3 @@ function TicketSelect({
     </label>
   );
 }
-

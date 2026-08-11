@@ -42,7 +42,7 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
 
         if (error) {
           console.error(error);
-          return Response.json([]);
+          return Response.json({ error: "WhatsApp data unavailable" }, { status: 500 });
         }
 
         return Response.json(data);
@@ -85,9 +85,18 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
             `WhatsApp origin detected - ${msg.id}`,
           ].join("\n");
 
-          const { error: ticketError } = await supabaseAdmin
+          const originMarker = `WhatsApp origin detected - ${msg.id}`;
+          const { data: existingTicket, error: lookupError } = await supabaseAdmin
             .from("support_tickets")
-            .insert({
+            .select("id")
+            .ilike("description", `%${originMarker}%`)
+            .limit(1)
+            .maybeSingle();
+          if (lookupError) return Response.json({ error: lookupError.message }, { status: 500 });
+
+          let ticketError = null;
+          if (!existingTicket) {
+            const result = await supabaseAdmin.from("support_tickets").insert({
               signup_id: null,
               lead_id: null,
               category: "Communication",
@@ -100,6 +109,8 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
               last_updated_by_name: "System",
               queue_type: queueType,
             });
+            ticketError = result.error;
+          }
 
           if (ticketError) {
             console.error("[whatsapp support ticket insert]", ticketError);
@@ -120,6 +131,42 @@ export const Route = createFileRoute("/api/whatsapp-inbox")({
           }
 
           return Response.json({ ok: true, queue_type: queueType });
+        }
+
+        if (body?.mode === "create_sales_lead") {
+          const msg = body?.message;
+          if (!msg?.id) return Response.json({ error: "Missing WhatsApp message" }, { status: 400 });
+
+          const sourceMarker = `whatsapp:${msg.id}`;
+          const { data: existingLead, error: lookupError } = await supabaseAdmin
+            .from("leads")
+            .select("id")
+            .eq("source_note", sourceMarker)
+            .limit(1)
+            .maybeSingle();
+          if (lookupError) return Response.json({ error: lookupError.message }, { status: 500 });
+
+          if (!existingLead) {
+            const { error: leadError } = await supabaseAdmin.from("leads").insert({
+              org_name: String(msg.sender_name || msg.from_number || "WhatsApp lead"),
+              org_type: "Other",
+              contact_person: String(msg.sender_name || ""),
+              phone: String(msg.from_number || ""),
+              public_phone: String(msg.from_number || ""),
+              lead_source: "WhatsApp",
+              source_note: sourceMarker,
+              notes: String(msg.message_text || ""),
+              status: "New Lead",
+            });
+            if (leadError) return Response.json({ error: leadError.message }, { status: 500 });
+          }
+
+          const { error: inboxError } = await supabaseAdmin
+            .from("whatsapp_inbox")
+            .update({ category: "Rep", status: "Assigned" })
+            .eq("id", msg.id);
+          if (inboxError) return Response.json({ error: inboxError.message }, { status: 500 });
+          return Response.json({ ok: true });
         }
 
         const id = body?.id;

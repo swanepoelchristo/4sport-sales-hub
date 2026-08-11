@@ -307,7 +307,9 @@ function LeadCandidatesPage() {
 
     const { data: lead, error: leadError } = await (supabase as any)
       .from("leads")
-      .insert({
+      .upsert({
+        // Reusing the candidate UUID makes conversion retry-safe after a partial failure.
+        id: candidate.id,
         org_name: candidate.org_name,
         org_type: candidate.org_type,
         province: candidate.province,
@@ -330,7 +332,7 @@ function LeadCandidatesPage() {
         do_not_contact: false,
         last_call_outcome: "",
         last_call_note: "",
-      })
+      }, { onConflict: "id" })
       .select("*")
       .single();
 

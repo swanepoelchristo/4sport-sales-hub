@@ -121,6 +121,7 @@ function LeadWorkspacePage() {
     setSavingRep(true);
     setError(null);
 
+    const previousRepId = lead.assigned_rep_id;
     updateLocalLead({ assigned_rep_id: selectedRepId });
 
     const { error: updateError } = await (supabase as any)
@@ -132,6 +133,7 @@ function LeadWorkspacePage() {
 
     if (updateError) {
       setError(updateError.message);
+      updateLocalLead({ assigned_rep_id: previousRepId });
     }
   };
 
@@ -367,7 +369,10 @@ function LeadWorkspacePage() {
 
           <Section title="Meeting + commission">
             <div className="space-y-3 text-sm text-muted-foreground">
-              <p><strong className="text-foreground">Meeting booking:</strong> foundation placeholder in PR #6. Full booking workflow comes next.</p>
+              <p><strong className="text-foreground">Meeting booking:</strong> create and manage the meeting from the Meetings workspace.</p>
+              <Link to="/meetings" className="inline-flex rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">
+                Open meetings
+              </Link>
               <p><strong className="text-foreground">Commission:</strong> meeting scheduled and new customer events come after the workflow foundation is stable.</p>
             </div>
           </Section>
