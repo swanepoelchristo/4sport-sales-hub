@@ -107,13 +107,13 @@ function ImpactWarRoom() {
     <div className="relative left-1/2 w-[min(1280px,calc(100vw-2rem))] -translate-x-1/2 space-y-6 pb-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-blue-700">
             4SPORT Impact War Room
           </p>
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
             Turn school sport traction into fundable proof
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
             This module tracks the Game Day Tech Table launch, school reach, report delivery,
             sponsorship packages, and international funding readiness.
           </p>
