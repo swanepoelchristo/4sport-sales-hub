@@ -196,7 +196,7 @@ function Dashboard() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-100 shadow-lg shadow-cyan-950/30">
+        <div className="rounded-2xl border border-cyan-300 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-900 shadow-lg shadow-cyan-950/10">
           Today,{" "}
           {new Date().toLocaleDateString("en-ZA", {
             day: "2-digit",
