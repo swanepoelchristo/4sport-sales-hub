@@ -6,6 +6,10 @@ import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/bootstrap-admin")({ component: BootstrapAdminPage });
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function BootstrapAdminPage() {
   const fn = useServerFn(bootstrapFirstAdmin);
   const [busy, setBusy] = useState(false);
@@ -17,8 +21,8 @@ function BootstrapAdminPage() {
     try {
       const r = await fn({ data: { sendInvite: true } });
       setMsg(r.message);
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (error: unknown) {
+      setErr(errorMessage(error));
     } finally {
       setBusy(false);
     }
