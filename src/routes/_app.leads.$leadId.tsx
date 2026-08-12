@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
 import {
@@ -22,6 +24,28 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/leads/$leadId")({ component: LeadWorkspacePage });
+
+type Tables = Database["public"]["Tables"];
+type LeadWorkspaceDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Omit<Tables, "leads"> & {
+      leads: {
+        Row: Lead;
+        Insert: Partial<Lead>;
+        Update: Partial<Lead>;
+        Relationships: [];
+      };
+      lead_activity: {
+        Row: LeadActivity;
+        Insert: Omit<LeadActivity, "id" | "created_at">;
+        Update: Partial<LeadActivity>;
+        Relationships: [];
+      };
+    };
+  };
+};
+
+const leadWorkspaceSupabase = supabase as unknown as SupabaseClient<LeadWorkspaceDatabase>;
 
 const outcomeToStatus: Record<CallOutcome, LeadStatus> = {
   no_answer: "Contacted",
@@ -103,7 +127,7 @@ function LeadWorkspacePage() {
 
     updateLocalLead({ assigned_agent_id: user.id });
 
-    const { error: updateError } = await (supabase as any)
+    const { error: updateError } = await leadWorkspaceSupabase
       .from("leads")
       .update({ assigned_agent_id: user.id })
       .eq("id", lead.id);
@@ -124,7 +148,7 @@ function LeadWorkspacePage() {
     const previousRepId = lead.assigned_rep_id;
     updateLocalLead({ assigned_rep_id: selectedRepId });
 
-    const { error: updateError } = await (supabase as any)
+    const { error: updateError } = await leadWorkspaceSupabase
       .from("leads")
       .update({ assigned_rep_id: selectedRepId || null })
       .eq("id", lead.id);
@@ -155,7 +179,7 @@ function LeadWorkspacePage() {
       next_follow_up_at: nextFollowUpIso,
     };
 
-    const { data, error: insertError } = await (supabase as any)
+    const { data, error: insertError } = await leadWorkspaceSupabase
       .from("lead_activity")
       .insert(row)
       .select()
