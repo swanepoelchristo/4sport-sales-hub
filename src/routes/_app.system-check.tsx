@@ -8,6 +8,7 @@ import { PageHeader, StatusBadge } from "@/components/ui-bits";
 import { HowToUse } from "@/components/HowToUse";
 import { Play, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { listAccounts, inviteAccount, sendPasswordReset } from "@/lib/accounts.functions";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_app/system-check")({ component: SystemCheckPage });
 
@@ -19,6 +20,18 @@ type Check = {
   message: string;
   at: string | null;
 };
+
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type UserRoleRow = Pick<Database["public"]["Tables"]["user_roles"]["Row"], "role">;
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = Reflect.get(error, "message");
+    if (typeof message === "string") return message;
+  }
+  return String(error);
+}
 
 const INITIAL: Check[] = [
   { id: "connection", label: "1. Supabase connection works", status: "pending", message: "", at: null },
@@ -72,14 +85,14 @@ function SystemCheckPage() {
         const { error } = await supabase.from("profiles").select("id", { head: true, count: "exact" }).limit(1);
         if (error) throw error;
         update("connection", { status: "pass", message: "Reached Supabase API." });
-      } catch (e: any) {
-        update("connection", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("connection", { status: "fail", message: errorMessage(error) });
       }
 
       // 2. Profile
       update("profile", { status: "running", message: "" });
-      let profileRow: any = null;
-      let roleRows: any[] = [];
+      let profileRow: ProfileRow | null = null;
+      let roleRows: UserRoleRow[] = [];
       try {
         const [profileResult, rolesResult] = await Promise.all([
           supabase.from("profiles").select("*").eq("id", u.auth_id).maybeSingle(),
@@ -91,8 +104,8 @@ function SystemCheckPage() {
         profileRow = profileResult.data;
         roleRows = rolesResult.data ?? [];
         update("profile", { status: "pass", message: `Loaded profile for ${profileResult.data.email}` });
-      } catch (e: any) {
-        update("profile", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("profile", { status: "fail", message: errorMessage(error) });
       }
 
       // 3. Role
@@ -111,8 +124,8 @@ function SystemCheckPage() {
           .from("leads").select("id", { count: "exact" }).limit(5);
         if (error) throw error;
         update("admin-leads", { status: "pass", message: `Read ${count ?? data?.length ?? 0} lead(s).` });
-      } catch (e: any) {
-        update("admin-leads", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("admin-leads", { status: "fail", message: errorMessage(error) });
       }
 
       // 5. Rep-scope RLS shape (logical check from policies)
@@ -125,8 +138,8 @@ function SystemCheckPage() {
         const { error } = await supabase.from("leads").select("id").eq("id", "00000000-0000-0000-0000-000000000000");
         if (error) throw error;
         update("rep-scope", { status: "pass", message: "RLS policy 'leads_rep_select' is active (rep sees only assigned_rep_id = current_rep_id)." });
-      } catch (e: any) {
-        update("rep-scope", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("rep-scope", { status: "fail", message: errorMessage(error) });
       }
 
       // 6. Create lead
@@ -141,8 +154,8 @@ function SystemCheckPage() {
         if (error) throw error;
         cleanup.leadId = data.id;
         update("create-lead", { status: "pass", message: `Inserted lead ${data.id.slice(0, 8)}…` });
-      } catch (e: any) {
-        update("create-lead", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("create-lead", { status: "fail", message: errorMessage(error) });
       }
 
       // 7. Edit lead
@@ -154,8 +167,8 @@ function SystemCheckPage() {
             .eq("id", cleanup.leadId);
           if (error) throw error;
           update("edit-lead", { status: "pass", message: "Updated notes field." });
-        } catch (e: any) {
-          update("edit-lead", { status: "fail", message: e?.message ?? String(e) });
+        } catch (error: unknown) {
+          update("edit-lead", { status: "fail", message: errorMessage(error) });
         }
       } else {
         update("edit-lead", { status: "fail", message: "Skipped — no lead created in step 6." });
@@ -175,8 +188,8 @@ function SystemCheckPage() {
           if (error) throw error;
           cleanup.meetingId = data.id;
           update("create-meeting", { status: "pass", message: `Inserted meeting ${data.id.slice(0, 8)}…` });
-        } catch (e: any) {
-          update("create-meeting", { status: "fail", message: e?.message ?? String(e) });
+        } catch (error: unknown) {
+          update("create-meeting", { status: "fail", message: errorMessage(error) });
         }
       } else {
         update("create-meeting", { status: "fail", message: "Skipped — no lead created in step 6." });
@@ -201,8 +214,8 @@ function SystemCheckPage() {
         } else {
           update("commission", { status: "fail", message: `Expected qualified=true / R500, got ${qualified} / R${amount}` });
         }
-      } catch (e: any) {
-        update("commission", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("commission", { status: "fail", message: errorMessage(error) });
       }
 
       // 10. Activity log write
@@ -217,8 +230,8 @@ function SystemCheckPage() {
         }).select().single();
         if (error) throw error;
         update("activity", { status: "pass", message: `Wrote activity log ${data.id.slice(0, 8)}…` });
-      } catch (e: any) {
-        update("activity", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("activity", { status: "fail", message: errorMessage(error) });
       }
 
       // 11. RLS blocks unauthorized — try to insert activity log with a fake actor_id
@@ -239,8 +252,8 @@ function SystemCheckPage() {
           await supabase.from("activity_logs").delete()
             .eq("actor_id", "00000000-0000-0000-0000-000000000000");
         }
-      } catch (e: any) {
-        update("rls", { status: "pass", message: `Blocked: ${e?.message ?? String(e)}` });
+      } catch (error: unknown) {
+        update("rls", { status: "pass", message: `Blocked: ${errorMessage(error)}` });
       }
 
       // 12. Auth → profile → role → rep linkage
@@ -258,8 +271,8 @@ function SystemCheckPage() {
         if (!rolesRes.data || rolesRes.data.length === 0) throw new Error("user_roles row missing");
         if (!repRes.data) throw new Error("reps row missing (linked by user_id)");
         update("auth-link", { status: "pass", message: `auth=${authId.slice(0,8)} · profile✓ · roles=${rolesRes.data.length} · rep=${repRes.data.id.slice(0,8)}` });
-      } catch (e: any) {
-        update("auth-link", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("auth-link", { status: "fail", message: errorMessage(error) });
       }
 
       // 13. Invite server function reachable (dry-run: re-invite self is idempotent)
@@ -268,8 +281,8 @@ function SystemCheckPage() {
         const list = await callListAccounts();
         update("invite-fn", { status: "pass", message: `listAccounts OK (${list.length} account${list.length === 1 ? "" : "s"}); inviteAccount endpoint reachable.` });
         void callInvite; // statically referenced — endpoint exists
-      } catch (e: any) {
-        update("invite-fn", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("invite-fn", { status: "fail", message: errorMessage(error) });
       }
 
       // 14. Password-reset server function reachable
@@ -278,8 +291,8 @@ function SystemCheckPage() {
         // Actually sending a reset to yourself is safe.
         await callReset({ data: { email: u.email } });
         update("reset-fn", { status: "pass", message: `Reset email dispatched to ${u.email}.` });
-      } catch (e: any) {
-        update("reset-fn", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("reset-fn", { status: "fail", message: errorMessage(error) });
       }
 
       // 15. /reset-password route reachable
@@ -291,8 +304,8 @@ function SystemCheckPage() {
         } else {
           update("reset-route", { status: "fail", message: `HTTP ${res.status}` });
         }
-      } catch (e: any) {
-        update("reset-route", { status: "fail", message: e?.message ?? String(e) });
+      } catch (error: unknown) {
+        update("reset-route", { status: "fail", message: errorMessage(error) });
       }
     } finally {
       // Cleanup TEST records
