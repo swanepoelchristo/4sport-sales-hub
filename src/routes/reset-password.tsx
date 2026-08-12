@@ -8,6 +8,10 @@ export const Route = createFileRoute("/reset-password")({ component: ResetPasswo
 
 const LOG = "[reset-password]";
 
+function errorMessage(error: unknown): string | null {
+  return error instanceof Error ? error.message : null;
+}
+
 function ResetPasswordPage() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
@@ -83,9 +87,10 @@ function ResetPasswordPage() {
         if (!cancelled) {
           setInitError("This reset link is missing or has already been used. Please request a new one.");
         }
-      } catch (e: any) {
-        console.warn(LOG, "init exception", e?.message ?? e);
-        if (!cancelled) setInitError(e?.message ?? "Could not validate reset link.");
+      } catch (error: unknown) {
+        const message = errorMessage(error);
+        console.warn(LOG, "init exception", message ?? error);
+        if (!cancelled) setInitError(message ?? "Could not validate reset link.");
       }
     }
 
