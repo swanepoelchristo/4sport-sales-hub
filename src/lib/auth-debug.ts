@@ -25,7 +25,6 @@ export function pushAuthEvent(event: string, session: { user?: { id: string; ema
   buffer.unshift(entry);
   if (buffer.length > MAX) buffer.length = MAX;
   // Safe console log — no tokens.
-  // eslint-disable-next-line no-console
   console.log("[auth]", event, { hasSession: entry.hasSession, userId: entry.userId, expiresAt: entry.expiresAt });
   listeners.forEach((l) => { try { l(); } catch { /* noop */ } });
 }
