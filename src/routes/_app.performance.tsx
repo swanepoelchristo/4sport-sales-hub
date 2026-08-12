@@ -12,11 +12,6 @@ export const Route = createFileRoute("/_app/performance")({ component: Performan
 
 function PerformancePage() {
   const { state, user } = useStore();
-  if (!user) return null;
-  if (user.role !== "admin") {
-    return <PageHeader title="Not authorised" subtitle="Admin only." />;
-  }
-
   const rows = useMemo(() => {
     return state.reps.map((r) => {
       const leads = state.leads.filter((l) => l.assigned_rep_id === r.id);
@@ -62,6 +57,11 @@ function PerformancePage() {
       }))
       .sort((a, b) => b.leads - a.leads);
   }, [state.leads]);
+
+  if (!user) return null;
+  if (user.role !== "admin") {
+    return <PageHeader title="Not authorised" subtitle="Admin only." />;
+  }
 
   const exportRepCsv = () => {
     exportRowsAsCsv(`rep-performance-${new Date().toISOString().slice(0, 10)}.csv`, rows);
