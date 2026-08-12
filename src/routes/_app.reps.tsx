@@ -12,6 +12,10 @@ import {
 
 export const Route = createFileRoute("/_app/reps")({ component: RepsPage });
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function RepsPage() {
   const { user, state } = useStore();
   if (!user) return null;
@@ -69,8 +73,8 @@ function AdminReps({ reps: initialReps }: { reps: Rep[] }) {
         flash(`Invite sent to ${form.email}.`);
       }
       setShowForm(false); setEditing(null); setForm(blank);
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (error: unknown) {
+      setErr(errorMessage(error));
     } finally {
       setBusyId(null);
     }
@@ -81,7 +85,7 @@ function AdminReps({ reps: initialReps }: { reps: Rep[] }) {
     try {
       await resetPw({ data: { email: r.email } });
       flash(`Password reset sent to ${r.email}.`);
-    } catch (e: any) { setErr(e?.message ?? String(e)); } finally { setBusyId(null); }
+    } catch (error: unknown) { setErr(errorMessage(error)); } finally { setBusyId(null); }
   };
 
   const resendOne = async (r: Rep) => {
@@ -89,7 +93,7 @@ function AdminReps({ reps: initialReps }: { reps: Rep[] }) {
     try {
       await resend({ data: { email: r.email } });
       flash(`Invite re-sent to ${r.email}.`);
-    } catch (e: any) { setErr(e?.message ?? String(e)); } finally { setBusyId(null); }
+    } catch (error: unknown) { setErr(errorMessage(error)); } finally { setBusyId(null); }
   };
 
   const toggleActive = async (r: Rep) => {
@@ -98,7 +102,7 @@ function AdminReps({ reps: initialReps }: { reps: Rep[] }) {
       await update({ data: { repId: r.id, active: !r.active } });
       setReps((rs) => rs.map((x) => x.id === r.id ? { ...x, active: !r.active } : x));
       flash(!r.active ? "Activated." : "Deactivated.");
-    } catch (e: any) { setErr(e?.message ?? String(e)); } finally { setBusyId(null); }
+    } catch (error: unknown) { setErr(errorMessage(error)); } finally { setBusyId(null); }
   };
 
   return (
