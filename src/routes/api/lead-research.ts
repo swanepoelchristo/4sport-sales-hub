@@ -17,6 +17,25 @@ type BraveResult = {
   extra_snippets?: string[];
 };
 
+type BraveSearchResponse = {
+  web?: {
+    results?: BraveResult[];
+  };
+};
+
+type LeadCandidate = NonNullable<Awaited<ReturnType<typeof resultToCandidate>>>;
+
+type ExistingCandidate = {
+  id: string;
+  source_url_1: string;
+  verification_status: string;
+  converted_lead_id: string | null;
+};
+
+type ExistingLead = {
+  source_url: string;
+};
+
 type QualityResult = {
   allowed: boolean;
   score: number;
@@ -331,7 +350,7 @@ function classifySource(result: BraveResult): SourceType {
 
 function cleanOrgName(title: string) {
   return cleanText(title)
-    .replace(/\s*[\-|–|—|•|:]\s*(home|contact|contacts|about|official website|school website).*$/i, "")
+    .replace(/\s*[-|–|—|•|:]\s*(home|contact|contacts|about|official website|school website).*$/i, "")
     .replace(/\b(home|contact us|contacts|official website|school website)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim()
@@ -735,7 +754,7 @@ async function enrichPublicContact(sourceUrl: string, website: string, orgName: 
 
   let generalEmail = "";
   let generalPhone = "";
-  let generalUrl = urls[0] || sourceUrl;
+  const generalUrl = urls[0] || sourceUrl;
 
   for (const url of urls) {
     const text = await fetchPublicText(url);
@@ -811,7 +830,7 @@ async function getAdminUserId(request: Request) {
     return { error: roleError.message, status: 500 as const };
   }
 
-  const isAdmin = (roleRows || []).some((row: any) => row.role === "admin");
+  const isAdmin = (roleRows || []).some((row) => row.role === "admin");
 
   if (!isAdmin) {
     return { error: "Only admin can generate public lead candidates", status: 403 as const };
@@ -839,7 +858,7 @@ async function braveSearch(query: string, apiKey: string, count: number) {
     throw new Error(`Search provider error ${res.status}: ${detail.slice(0, 300)}`);
   }
 
-  const json: any = await res.json();
+  const json = await res.json() as BraveSearchResponse;
   return (json?.web?.results || []) as BraveResult[];
 }
 
@@ -950,7 +969,7 @@ export const Route = createFileRoute("/api/lead-research")({
           }, { status: 500 });
         }
 
-        const body = await request.json().catch(() => ({}));
+        const body = await request.json().catch(() => ({})) as Record<string, unknown>;
         const target: ResearchTarget = {
           province: cleanText(body.province || "Gauteng"),
           city: cleanText(body.city || ""),
@@ -962,7 +981,7 @@ export const Route = createFileRoute("/api/lead-research")({
 
         const queries = buildQueries(target as Required<Pick<ResearchTarget, "province" | "org_type">> & ResearchTarget);
 
-        const allCandidates: any[] = [];
+        const allCandidates: LeadCandidate[] = [];
         const seenUrls = new Set<string>();
         let rejectedByQuality = 0;
 
@@ -1013,22 +1032,22 @@ export const Route = createFileRoute("/api/lead-research")({
           .select("source_url")
           .in("source_url", urls);
 
-        const existingCandidateByUrl = new Map(
+        const existingCandidateByUrl = new Map<string, ExistingCandidate>(
           (existingCandidates || [])
-            .filter((row: any) => row.source_url_1)
-            .map((row: any) => [row.source_url_1, row])
+            .filter((row): row is ExistingCandidate => Boolean(row.source_url_1))
+            .map((row) => [row.source_url_1, row])
         );
 
         const existingLeadUrls = new Set(
-          (existingLeads || [])
-            .map((row: any) => row.source_url)
-            .filter(Boolean)
+          (existingLeads || [] as ExistingLead[])
+            .map((row) => row.source_url)
+            .filter((url): url is string => Boolean(url))
         );
 
         const refreshableCandidateStatuses = new Set(["needs_check", "checked_once"]);
 
         const toRefresh = allCandidates.filter((candidate) => {
-          const existing = existingCandidateByUrl.get(candidate.source_url_1) as any;
+          const existing = existingCandidateByUrl.get(candidate.source_url_1);
           return Boolean(
             existing
             && !existingLeadUrls.has(candidate.source_url_1)
@@ -1041,10 +1060,10 @@ export const Route = createFileRoute("/api/lead-research")({
           && !existingLeadUrls.has(candidate.source_url_1)
         ));
 
-        const updatedExisting: any[] = [];
+        const updatedExisting: unknown[] = [];
 
         for (const candidate of toRefresh) {
-          const existing = existingCandidateByUrl.get(candidate.source_url_1) as any;
+          const existing = existingCandidateByUrl.get(candidate.source_url_1);
           if (!existing?.id) continue;
 
           const refreshPatch = {
@@ -1084,7 +1103,7 @@ export const Route = createFileRoute("/api/lead-research")({
           if (updated) updatedExisting.push(updated);
         }
 
-        let insertedData: any[] = [];
+        let insertedData: unknown[] = [];
 
         if (toInsert.length) {
           const { data, error } = await supabaseAdmin
