@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS build
+FROM oven/bun:1.3.14 AS build
 
 WORKDIR /app
 
@@ -7,8 +7,8 @@ ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 
-COPY package.json bun.lock* bunfig.toml* ./
-RUN bun install
+COPY package.json bun.lock bunfig.toml ./
+RUN bun install --frozen-lockfile
 
 COPY . .
 
