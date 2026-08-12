@@ -2,6 +2,8 @@ import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { pushAuthEvent } from "./auth-debug";
 import type {
   Rep, Lead, Meeting, Signup, ActivityLog, Profile, Role,
@@ -50,8 +52,40 @@ interface Ctx {
 const StoreContext = createContext<Ctx | null>(null);
 export const PROFILE_LOAD_ERROR = "Profile could not be loaded. Please refresh.";
 
+type Tables = Database["public"]["Tables"];
+type RepRow = Tables["reps"]["Row"];
+type MeetingRow = Tables["meetings"]["Row"];
+type ActivityRow = Tables["activity_logs"]["Row"];
+type ProfileRow = Tables["profiles"]["Row"];
+type RoleRow = Tables["user_roles"]["Row"];
+type LeadRow = Tables["leads"]["Row"] & Pick<Lead,
+  "website" | "public_phone" | "public_email" | "source_url" | "source_note" |
+  "assigned_agent_id" | "do_not_contact" | "last_call_outcome" | "last_call_note" |
+  "last_contacted_at"
+>;
+type SignupRow = Tables["signups"]["Row"] & Omit<Signup, keyof Tables["signups"]["Row"]>;
+type CallCenterAgentRow = {
+  id: string; auth_user_id: string | null; name: string; email: string; phone: string;
+  status: string; created_at: string; updated_at: string;
+};
+type LeadActivityRow = {
+  id: string; lead_id: string; agent_id: string | null; activity_type: string;
+  outcome: string; notes: string; next_follow_up_at: string | null; created_at: string;
+};
+type LeadCandidateRow = LeadCandidate;
+type StoreDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Tables & {
+      call_center_agents: { Row: CallCenterAgentRow; Insert: Partial<CallCenterAgentRow>; Update: Partial<CallCenterAgentRow>; Relationships: [] };
+      lead_activity: { Row: LeadActivityRow; Insert: Partial<LeadActivityRow>; Update: Partial<LeadActivityRow>; Relationships: [] };
+      lead_candidates: { Row: LeadCandidateRow; Insert: Partial<LeadCandidateRow>; Update: Partial<LeadCandidateRow>; Relationships: [] };
+    };
+  };
+};
+const storeSupabase = supabase as unknown as SupabaseClient<StoreDatabase>;
+
 // ---------- Row mappers (DB <-> domain) ----------
-const repFromRow = (r: any): Rep => ({
+const repFromRow = (r: RepRow): Rep => ({
   id: r.id,
   profile_id: r.profile_id ?? null,
   user_id: r.user_id ?? null,
@@ -69,7 +103,7 @@ const repFromRow = (r: any): Rep => ({
   password_reset_sent_at: r.password_reset_sent_at ?? null,
 });
 
-const leadFromRow = (r: any): Lead => ({
+const leadFromRow = (r: LeadRow): Lead => ({
   id: r.id,
   org_name: r.org_name,
   org_type: r.org_type,
@@ -101,7 +135,7 @@ const leadFromRow = (r: any): Lead => ({
   created_at: r.created_at,
 });
 
-const meetingFromRow = (r: any): Meeting => ({
+const meetingFromRow = (r: MeetingRow): Meeting => ({
   id: r.id,
   lead_id: r.lead_id,
   rep_id: r.rep_id ?? "",
@@ -113,7 +147,7 @@ const meetingFromRow = (r: any): Meeting => ({
   next_follow_up: r.next_follow_up ?? null,
 });
 
-const signupFromRow = (r: any): Signup => ({
+const signupFromRow = (r: SignupRow): Signup => ({
   id: r.id,
   lead_id: r.lead_id,
   rep_id: r.rep_id ?? "",
@@ -156,7 +190,7 @@ const signupFromRow = (r: any): Signup => ({
   admin_notes: r.admin_notes ?? "",
 });
 
-const activityFromRow = (r: any): ActivityLog => ({
+const activityFromRow = (r: ActivityRow): ActivityLog => ({
   id: r.id,
   at: r.created_at,
   actor_id: r.actor_id ?? "",
@@ -165,7 +199,7 @@ const activityFromRow = (r: any): ActivityLog => ({
   detail: r.detail ?? "",
 });
 
-const callCenterAgentFromRow = (r: any): CallCenterAgent => ({
+const callCenterAgentFromRow = (r: CallCenterAgentRow): CallCenterAgent => ({
   id: r.id,
   auth_user_id: r.auth_user_id ?? null,
   name: r.name ?? "",
@@ -175,7 +209,7 @@ const callCenterAgentFromRow = (r: any): CallCenterAgent => ({
   created_at: r.created_at,
 });
 
-const leadActivityFromRow = (r: any): LeadActivity => ({
+const leadActivityFromRow = (r: LeadActivityRow): LeadActivity => ({
   id: r.id,
   lead_id: r.lead_id,
   agent_id: r.agent_id ?? null,
@@ -186,7 +220,7 @@ const leadActivityFromRow = (r: any): LeadActivity => ({
   created_at: r.created_at,
 });
 
-const leadCandidateFromRow = (r: any): LeadCandidate => ({
+const leadCandidateFromRow = (r: LeadCandidateRow): LeadCandidate => ({
   id: r.id,
   org_name: r.org_name ?? "",
   org_type: r.org_type ?? "School",
@@ -231,7 +265,7 @@ const leadCandidateFromRow = (r: any): LeadCandidate => ({
 });
 
 // ---------- Diff to DB ----------
-function eq(a: any, b: any) { return JSON.stringify(a) === JSON.stringify(b); }
+function eq(a: unknown, b: unknown) { return JSON.stringify(a) === JSON.stringify(b); }
 
 // NOTE: We never hard-delete via diff sync. Removals from local state
 // translate to soft-archive in DB (archived=true, deleted_at, deleted_by).
@@ -239,11 +273,11 @@ async function syncTable<T extends { id: string }>(
   table: "reps" | "leads" | "meetings" | "signups",
   oldList: T[],
   newList: T[],
-  toRow: (x: T) => any,
+  toRow: (x: T) => Record<string, unknown>,
 ) {
   const oldMap = new Map(oldList.map((x) => [x.id, x]));
   const newMap = new Map(newList.map((x) => [x.id, x]));
-  const upserts: any[] = [];
+  const upserts: Record<string, unknown>[] = [];
   for (const [id, n] of newMap) {
     const o = oldMap.get(id);
     if (!o || !eq(o, n)) upserts.push(toRow(n));
@@ -346,9 +380,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase.from("meetings").select("*").eq("archived", false).order("meeting_at", { ascending: false }),
       supabase.from("signups").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(500),
-      (supabase as any).from("call_center_agents").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("lead_activity").select("*").order("created_at", { ascending: false }).limit(1000),
-      (supabase as any).from("lead_candidates").select("*").order("created_at", { ascending: false }).limit(1000),
+      storeSupabase.from("call_center_agents").select("*").order("created_at", { ascending: false }),
+      storeSupabase.from("lead_activity").select("*").order("created_at", { ascending: false }).limit(1000),
+      storeSupabase.from("lead_candidates").select("*").order("created_at", { ascending: false }).limit(1000),
     ]);
     const failed = [reps, leads, meetings, signups, activity, callCenterAgents, leadActivity, leadCandidates]
       .find((result) => result.error);
@@ -368,7 +402,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       leadCandidates: (leadCandidates.data ?? []).map(leadCandidateFromRow),
     });
     if (!profile.id) {
-      const mine = (reps.data ?? []).find((r: any) => r.user_id === profile.auth_id);
+      const mine = (reps.data ?? []).find((r) => r.user_id === profile.auth_id);
       if (mine) setUser({ ...profile, id: mine.id });
     }
     return true;
@@ -419,14 +453,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (rolesErr) console.warn("[roles.lookup.error]", rolesErr.message);
     const { data: repRows } = await supabase
       .from("reps").select("id").eq("user_id", authUser.id).limit(1);
-    const { data: agentRows } = await (supabase as any)
+    const { data: agentRows } = await storeSupabase
       .from("call_center_agents").select("id,status").eq("auth_user_id", authUser.id).limit(1);
 
     const rep = repRows?.[0] ?? null;
     const agent = agentRows?.[0] ?? null;
     const roleList = roles ?? [];
-    const profileRole = (profile as any).role as Role;
-    const hasRole = (role: string) => roleList.some((r: any) => r.role === role);
+    const profileRole = (profile as ProfileRow & { role?: Role }).role;
+    const hasRole = (role: Role) => roleList.some((r: RoleRow) => r.role === role);
     const role: Role = hasRole("admin")
       ? "admin"
       : profileRole === "call_center_agent"
