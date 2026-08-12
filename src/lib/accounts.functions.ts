@@ -2,9 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 
 const roleSchema = z.enum(["admin", "sales_rep"]);
 type AccountRole = z.infer<typeof roleSchema>;
+type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
+type RepInsert = Database["public"]["Tables"]["reps"]["Insert"];
+type UserRoleInsert = Database["public"]["Tables"]["user_roles"]["Insert"];
+type AccountInvitationInsert = Database["public"]["Tables"]["account_invitations"]["Insert"];
 const BACK_OFFICE_ROLES = ["admin"] as const;
 
 const BACK_OFFICE_ACCOUNTS: Array<{ email: string; fullName: string; role: AccountRole }> = [
@@ -38,25 +43,27 @@ async function upsertLinkedRows(input: {
   phone?: string; province?: string; region?: string; sportFocus?: string; active?: boolean;
 }) {
   const { userId, email, fullName, role } = input;
+  const profile: ProfileInsert = { id: userId, email, full_name: fullName };
+  const userRole: UserRoleInsert = { user_id: userId, role };
   const [{ error: profileError }, { error: roleDeleteError }] = await Promise.all([
-    supabaseAdmin.from("profiles").upsert({ id: userId, email, full_name: fullName, role } as any),
+    supabaseAdmin.from("profiles").upsert(profile),
     supabaseAdmin.from("user_roles").delete().eq("user_id", userId),
   ]);
   if (profileError) throw profileError;
   if (roleDeleteError) throw roleDeleteError;
-  const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role } as any);
+  const { error: roleError } = await supabaseAdmin.from("user_roles").insert(userRole);
   if (roleError) throw roleError;
 
   const { data: rep } = await supabaseAdmin.from("reps").select("id").eq("user_id", userId).maybeSingle();
-  const row = {
+  const row: RepInsert = {
     user_id: userId, profile_id: userId, full_name: fullName, email,
     phone: input.phone ?? "", province: input.province ?? "", region: input.region ?? "",
     sport_focus: input.sportFocus ?? "Multi-sport", role, active: input.active ?? true,
     invitation_status: "accepted" as const,
   };
   const { error: repError } = rep
-    ? await supabaseAdmin.from("reps").update(row as any).eq("id", rep.id)
-    : await supabaseAdmin.from("reps").insert(row as any);
+    ? await supabaseAdmin.from("reps").update(row).eq("id", rep.id)
+    : await supabaseAdmin.from("reps").insert(row);
   if (repError) throw repError;
 }
 
@@ -124,7 +131,8 @@ export const inviteAccount = createServerFn({ method: "POST" })
       if (error) throw error;
     }
     await upsertLinkedRows({ userId: user.id, email, fullName: data.fullName, role: data.role, phone: data.phone, province: data.province, region: data.region, sportFocus: data.sportFocus, active: data.active });
-    await supabaseAdmin.from("account_invitations").upsert({ email, full_name: data.fullName, role: data.role, invited_by: context.userId, status: "pending", last_sent_at: new Date().toISOString() } as any, { onConflict: "email" });
+    const invitation: AccountInvitationInsert = { email, full_name: data.fullName, role: data.role, invited_by: context.userId, status: "pending", last_sent_at: new Date().toISOString() };
+    await supabaseAdmin.from("account_invitations").upsert(invitation, { onConflict: "email" });
     await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.invite", detail: `Invited ${data.fullName} (${email})`, entity_type: "account" });
     return { ok: true };
   });
@@ -192,7 +200,8 @@ export const updateAccount = createServerFn({ method: "POST" })
 
     if (data.role && rep.user_id && data.role !== rep.role) {
       await supabaseAdmin.from("user_roles").delete().eq("user_id", rep.user_id);
-      await supabaseAdmin.from("user_roles").insert({ user_id: rep.user_id, role: data.role } as any);
+      const userRole: UserRoleInsert = { user_id: rep.user_id, role: data.role };
+      await supabaseAdmin.from("user_roles").insert(userRole);
       await supabaseAdmin.from("activity_logs").insert({ actor_id: context.userId, actor_name: context.claims.email ?? "Back office", action: "account.role_assigned", detail: `${rep.email} -> ${data.role}`, entity_type: "account" });
     }
     if (data.active === false && rep.active) {
