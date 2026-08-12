@@ -123,6 +123,7 @@ function severityTone(severity: string) {
 
 function SupportPage() {
   const { state, user } = useStore();
+  const userName = user?.full_name ?? "Unassigned";
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [activitiesByTicket, setActivitiesByTicket] = useState<Record<string, TicketActivity[]>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -140,9 +141,7 @@ function SupportPage() {
     sla_hours: 1,
   });
 
-  if (!user) return null;
-
-  const staffOptions = ["Unassigned", user.full_name, ...state.reps.map((rep) => rep.full_name)].filter(
+  const staffOptions = ["Unassigned", userName, ...state.reps.map((rep) => rep.full_name)].filter(
     (name, index, names) => names.indexOf(name) === index,
   );
 
@@ -227,6 +226,8 @@ function SupportPage() {
     if (queueFilter === "All") return tickets;
     return tickets.filter((ticket) => (ticket.queue_type ?? "Support") === queueFilter);
   }, [tickets, queueFilter]);
+
+  if (!user) return null;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
