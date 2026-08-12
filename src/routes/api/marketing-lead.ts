@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const ALLOWED_ORIGINS = new Set([
   "https://4sport.co.za",
@@ -8,7 +10,51 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:5173",
 ]);
 
-const ORG_TYPES = new Set(["School", "Club", "Academy", "Other"]);
+type OrgType = Database["public"]["Enums"]["org_type"];
+const ORG_TYPES = new Set<OrgType>(["School", "Club", "Academy", "Other"]);
+
+type Tables = Database["public"]["Tables"];
+type LeadRow = Tables["leads"]["Row"] & {
+  marketing_campaign_id: string | null;
+  marketing_creative_id: string | null;
+  marketing_campaign_code: string;
+  marketing_creative_code: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  landing_path: string;
+};
+type MarketingLeadDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Omit<Tables, "leads"> & {
+      leads: {
+        Row: LeadRow;
+        Insert: Tables["leads"]["Insert"] & Partial<LeadRow>;
+        Update: Tables["leads"]["Update"] & Partial<LeadRow>;
+        Relationships: Tables["leads"]["Relationships"];
+      };
+      marketing_campaigns: {
+        Row: { id: string; campaign_code: string };
+        Insert: { campaign_code: string };
+        Update: { campaign_code?: string };
+        Relationships: [];
+      };
+      marketing_creatives: {
+        Row: { id: string; campaign_id: string; creative_code: string };
+        Insert: { campaign_id: string; creative_code: string };
+        Update: { campaign_id?: string; creative_code?: string };
+        Relationships: [];
+      };
+    };
+  };
+};
+
+const marketingLeadAdmin = supabaseAdmin as unknown as SupabaseClient<MarketingLeadDatabase>;
+
+function isOrgType(value: string): value is OrgType {
+  return ORG_TYPES.has(value as OrgType);
+}
 
 function corsHeaders(request: Request) {
   const origin = request.headers.get("origin") ?? "";
@@ -52,19 +98,17 @@ export const Route = createFileRoute("/api/marketing-lead")({
           }
 
           const requestedOrgType = clean(payload.org_type, 40) || "School";
-          const orgType = ORG_TYPES.has(requestedOrgType) ? requestedOrgType : "Other";
+          const orgType = isOrgType(requestedOrgType) ? requestedOrgType : "Other";
           const campaignCode = clean(payload.utm_campaign ?? payload.marketing_campaign_code, 120);
           const creativeCode = clean(payload.utm_content ?? payload.marketing_creative_code, 120);
           const utmSource = clean(payload.utm_source, 80);
           const utmMedium = clean(payload.utm_medium, 80);
           const landingPath = clean(payload.landing_path, 240);
-          const admin = supabaseAdmin as any;
-
           let marketingCampaignId: string | null = null;
           let marketingCreativeId: string | null = null;
 
           if (campaignCode) {
-            const { data: campaign } = await admin
+            const { data: campaign } = await marketingLeadAdmin
               .from("marketing_campaigns")
               .select("id")
               .eq("campaign_code", campaignCode)
@@ -73,7 +117,7 @@ export const Route = createFileRoute("/api/marketing-lead")({
           }
 
           if (marketingCampaignId && creativeCode) {
-            const { data: creative } = await admin
+            const { data: creative } = await marketingLeadAdmin
               .from("marketing_creatives")
               .select("id")
               .eq("campaign_id", marketingCampaignId)
@@ -90,7 +134,7 @@ export const Route = createFileRoute("/api/marketing-lead")({
             .filter(Boolean)
             .join("\n");
 
-          const { data: lead, error } = await admin
+          const { data: lead, error } = await marketingLeadAdmin
             .from("leads")
             .insert({
               org_name: orgName,
@@ -108,13 +152,13 @@ export const Route = createFileRoute("/api/marketing-lead")({
               notes,
               marketing_campaign_id: marketingCampaignId,
               marketing_creative_id: marketingCreativeId,
-              marketing_campaign_code: campaignCode || null,
-              marketing_creative_code: creativeCode || null,
-              utm_source: utmSource || null,
-              utm_medium: utmMedium || null,
-              utm_campaign: campaignCode || null,
-              utm_content: creativeCode || null,
-              landing_path: landingPath || null,
+              marketing_campaign_code: campaignCode,
+              marketing_creative_code: creativeCode,
+              utm_source: utmSource,
+              utm_medium: utmMedium,
+              utm_campaign: campaignCode,
+              utm_content: creativeCode,
+              landing_path: landingPath,
             })
             .select("id")
             .single();
