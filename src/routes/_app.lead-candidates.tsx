@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ClipboardCheck, Search, ShieldAlert, Plus, CheckCircle2, XCircle, ArrowRightCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useStore } from "@/lib/store";
 import { PageHeader, Section, StatusBadge, EmptyState } from "@/components/ui-bits";
 import { HowToUse } from "@/components/HowToUse";
@@ -11,6 +13,7 @@ import {
   SPORTS,
   type LeadCandidate,
   type LeadCandidateStatus,
+  type Lead,
   type OrgType,
   type Sport,
 } from "@/lib/types";
@@ -19,6 +22,28 @@ import { audit } from "@/lib/audit";
 export const Route = createFileRoute("/_app/lead-candidates")({ component: LeadCandidatesPage });
 
 const orgTypes: OrgType[] = ["School", "Club", "Academy", "Other"];
+
+type Tables = Database["public"]["Tables"];
+type LeadCandidateDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Omit<Tables, "leads"> & {
+      leads: {
+        Row: Lead;
+        Insert: Partial<Lead>;
+        Update: Partial<Lead>;
+        Relationships: [];
+      };
+      lead_candidates: {
+        Row: LeadCandidate;
+        Insert: Partial<LeadCandidate>;
+        Update: Partial<LeadCandidate>;
+        Relationships: [];
+      };
+    };
+  };
+};
+
+const leadCandidateSupabase = supabase as unknown as SupabaseClient<LeadCandidateDatabase>;
 
 const statusTone = (s: LeadCandidateStatus) => {
   if (s === "converted" || s === "approved") return "success" as const;
@@ -222,7 +247,7 @@ function LeadCandidatesPage() {
       created_by: user.auth_id,
     };
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await leadCandidateSupabase
       .from("lead_candidates")
       .insert(payload)
       .select("*")
@@ -248,7 +273,7 @@ function LeadCandidatesPage() {
     setBusy(`${label}-${candidate.id}`);
     setMessage(null);
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await leadCandidateSupabase
       .from("lead_candidates")
       .update(patch)
       .eq("id", candidate.id)
@@ -305,7 +330,7 @@ function LeadCandidatesPage() {
     setBusy(`convert-${candidate.id}`);
     setMessage(null);
 
-    const { data: lead, error: leadError } = await (supabase as any)
+    const { data: lead, error: leadError } = await leadCandidateSupabase
       .from("leads")
       .upsert({
         // Reusing the candidate UUID makes conversion retry-safe after a partial failure.
@@ -342,7 +367,7 @@ function LeadCandidatesPage() {
       return;
     }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await leadCandidateSupabase
       .from("lead_candidates")
       .update({
         verification_status: "converted",
