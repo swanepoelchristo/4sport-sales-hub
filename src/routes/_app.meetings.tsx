@@ -22,28 +22,27 @@ function fmtDateTime(iso: string) {
 
 function MeetingsPage() {
   const { state, user, setState, addActivity, uid } = useStore();
-  if (!user) return null;
-
-  const isAdmin = user.role === "admin";
+  const userId = user?.id ?? "";
+  const isAdmin = user?.role === "admin";
   const [showForm, setShowForm] = useState(false);
   const [status, setStatus] = useState("all");
   const [rep, setRep] = useState("all");
 
   const meetings = useMemo(() => {
-    let list = isAdmin ? state.meetings : state.meetings.filter((m) => m.rep_id === user.id);
+    let list = isAdmin ? state.meetings : state.meetings.filter((m) => m.rep_id === userId);
 
     if (status !== "all") list = list.filter((m) => m.status === status);
     if (isAdmin && rep !== "all") list = list.filter((m) => m.rep_id === rep);
 
     return [...list].sort((a, b) => +new Date(b.meeting_at) - +new Date(a.meeting_at));
-  }, [state.meetings, isAdmin, user.id, status, rep]);
+  }, [state.meetings, isAdmin, userId, status, rep]);
 
   const leadById = (id: string) => state.leads.find((l) => l.id === id);
   const repById = (id: string) => state.reps.find((r) => r.id === id);
 
   const initialForm: Omit<Meeting, "id"> = {
-    lead_id: (isAdmin ? state.leads[0]?.id : state.leads.find((l) => l.assigned_rep_id === user.id)?.id) ?? "",
-    rep_id: user.id,
+    lead_id: (isAdmin ? state.leads[0]?.id : state.leads.find((l) => l.assigned_rep_id === userId)?.id) ?? "",
+    rep_id: userId,
     meeting_at: new Date().toISOString().slice(0, 16),
     meeting_type: "In-person",
     status: "Scheduled",
@@ -53,6 +52,8 @@ function MeetingsPage() {
   };
 
   const [form, setForm] = useState(initialForm);
+
+  if (!user) return null;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
