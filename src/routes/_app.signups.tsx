@@ -45,14 +45,13 @@ function money(value: number) {
 
 function SignupsPage() {
   const { state, user, setState, addActivity, uid } = useStore();
-  if (!user) return null;
-
-  const isAdmin = user.role === "admin";
+  const userId = user?.id ?? "";
+  const isAdmin = user?.role === "admin";
   const [showForm, setShowForm] = useState(false);
 
   const signups = useMemo(
-    () => (isAdmin ? state.signups : state.signups.filter((s) => s.rep_id === user.id)),
-    [state.signups, isAdmin, user.id],
+    () => (isAdmin ? state.signups : state.signups.filter((s) => s.rep_id === userId)),
+    [state.signups, isAdmin, userId],
   );
 
   const leadById = (id: string) => state.leads.find((l) => l.id === id);
@@ -67,11 +66,11 @@ function SignupsPage() {
     (s) => commissionQualified(s) && s.commission_payment_status !== "Paid",
   ).length;
 
-  const visibleLeads = isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === user.id);
+  const visibleLeads = isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === userId);
 
   const initial: Omit<Signup, "id"> = {
     lead_id: visibleLeads[0]?.id ?? "",
-    rep_id: user.id,
+    rep_id: userId,
     signed_date: new Date().toISOString().slice(0, 10),
     paid: false,
     payment_date: null,
@@ -112,6 +111,8 @@ function SignupsPage() {
   };
 
   const [form, setForm] = useState(initial);
+
+  if (!user) return null;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
