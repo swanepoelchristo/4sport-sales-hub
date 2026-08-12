@@ -4,6 +4,8 @@ import { BarChart3, Copy, Megaphone, Plus } from "lucide-react";
 import { PageHeader, Section, EmptyState } from "@/components/ui-bits";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildCampaignCode,
   buildTrackedLandingUrl,
@@ -16,6 +18,23 @@ import {
 export const Route = createFileRoute("/_app/marketing")({ component: MarketingPage });
 
 const FACTORY_BASE_URL = "https://4sport.co.za";
+
+type Tables = Database["public"]["Tables"];
+type MarketingCampaignInsert = Omit<MarketingCampaign, "id" | "created_at" | "updated_at">;
+type MarketingDashboardDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Tables & {
+      marketing_campaigns: {
+        Row: MarketingCampaign;
+        Insert: MarketingCampaignInsert;
+        Update: Partial<MarketingCampaignInsert>;
+        Relationships: [];
+      };
+    };
+  };
+};
+
+const marketingSupabase = supabase as unknown as SupabaseClient<MarketingDashboardDatabase>;
 
 function MarketingPage() {
   const { user } = useStore();
@@ -41,7 +60,7 @@ function MarketingPage() {
 
     let active = true;
     void (async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await marketingSupabase
         .from("marketing_campaigns")
         .select("*")
         .order("created_at", { ascending: false });
@@ -80,7 +99,7 @@ function MarketingPage() {
     setSaving(true);
     setMessage("");
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await marketingSupabase
       .from("marketing_campaigns")
       .insert({
         campaign_code: campaignCode,
