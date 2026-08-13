@@ -18,7 +18,7 @@ export function IdleTimer() {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(async () => {
         toast("Signed out due to inactivity.");
-        await logout();
+        await logout("idle");
         navigate({ to: "/login", replace: true });
       }, ms);
     };
