@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { pushAuthEvent } from "./auth-debug";
+import { audit } from "./audit";
 import { PROFILE_LOAD_ERROR, StoreContext, type State } from "./store-context";
 import type {
   Rep, Lead, Meeting, Signup, ActivityLog, Role,
@@ -560,11 +561,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
 
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (reason: "manual" | "idle" = "manual") => {
+    const activeUser = user;
+    if (activeUser) {
+      await audit("logout", reason === "idle" ? "Signed out after 30 minutes of inactivity." : "Signed out manually.", {
+        actorId: activeUser.auth_id,
+        actorName: activeUser.full_name,
+      });
+    }
     await supabase.auth.signOut();
     setUser(null);
     setStateInner(emptyState);
-  }, []);
+  }, [user]);
 
   const uid = useCallback(() => {
     if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
