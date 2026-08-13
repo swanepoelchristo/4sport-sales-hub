@@ -26,7 +26,7 @@ export interface StoreContextValue {
   reloadData: () => Promise<void>;
   login: (email: string, password: string) => Promise<Profile | { error: string }>;
   retryProfileLoad: () => Promise<Profile | { error: string }>;
-  logout: () => Promise<void>;
+  logout: (reason?: "manual" | "idle") => Promise<void>;
   setState: (updater: (state: State) => State) => void;
   addActivity: (action: string, detail: string, entity?: { type?: string; id?: string }) => Promise<void>;
   uid: () => string;
