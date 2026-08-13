@@ -1,25 +1,13 @@
-import {
-  createContext, useCallback, useContext, useEffect, useState, type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { pushAuthEvent } from "./auth-debug";
+import { PROFILE_LOAD_ERROR, StoreContext, type State } from "./store-context";
 import type {
-  Rep, Lead, Meeting, Signup, ActivityLog, Profile, Role,
+  Rep, Lead, Meeting, Signup, ActivityLog, Role,
   CallCenterAgent, LeadActivity, LeadCandidate,
 } from "./types";
-
-interface State {
-  reps: Rep[];
-  leads: Lead[];
-  meetings: Meeting[];
-  signups: Signup[];
-  activity: ActivityLog[];
-  callCenterAgents: CallCenterAgent[];
-  leadActivity: LeadActivity[];
-  leadCandidates: LeadCandidate[];
-}
 
 const emptyState: State = {
   reps: [],
@@ -31,26 +19,6 @@ const emptyState: State = {
   leadActivity: [],
   leadCandidates: [],
 };
-
-interface Ctx {
-  state: State;
-  user: Profile | null;
-  loading: boolean;
-  finalizing: boolean;
-  dataError: string | null;
-  mutationError: string | null;
-  clearMutationError: () => void;
-  reloadData: () => Promise<void>;
-  login: (email: string, password: string) => Promise<Profile | { error: string }>;
-  retryProfileLoad: () => Promise<Profile | { error: string }>;
-  logout: () => Promise<void>;
-  setState: (updater: (s: State) => State) => void;
-  addActivity: (action: string, detail: string, entity?: { type?: string; id?: string }) => Promise<void>;
-  uid: () => string;
-}
-
-const StoreContext = createContext<Ctx | null>(null);
-export const PROFILE_LOAD_ERROR = "Profile could not be loaded. Please refresh.";
 
 type Tables = Database["public"]["Tables"];
 type RepRow = Tables["reps"]["Row"];
@@ -633,10 +601,4 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       {children}
     </StoreContext.Provider>
   );
-}
-
-export function useStore() {
-  const ctx = useContext(StoreContext);
-  if (!ctx) throw new Error("useStore must be used within StoreProvider");
-  return ctx;
 }
