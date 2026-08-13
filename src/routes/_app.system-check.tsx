@@ -202,6 +202,8 @@ function SystemCheckPage() {
           id: "x", lead_id: "x", rep_id: "x",
           signed_date: new Date().toISOString(),
           paid: true, payment_date: new Date().toISOString(),
+          final_agreed_price: 2500,
+          first_payment_received: true,
           active_teams: 3, paying_users_active: true,
           commission_year: "1st year",
           commission_payment_status: "Pending",
