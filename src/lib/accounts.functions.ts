@@ -12,10 +12,23 @@ type UserRoleInsert = Database["public"]["Tables"]["user_roles"]["Insert"];
 type AccountInvitationInsert = Database["public"]["Tables"]["account_invitations"]["Insert"];
 const BACK_OFFICE_ROLES = ["admin"] as const;
 
+const APPROVED_ADMIN_EMAILS = new Set([
+  "swanepoelchristo00@gmail.com",
+  "support@4sport.co.za",
+  "info@4sport.co.za",
+]);
+
 const BACK_OFFICE_ACCOUNTS: Array<{ email: string; fullName: string; role: AccountRole }> = [
-  { email: "info@4sport.co.za", fullName: "Marianne", role: "admin" },
-  { email: "support@4sport.co.za", fullName: "Christo", role: "admin" },
+  { email: "swanepoelchristo00@gmail.com", fullName: "Christo Swanepoel", role: "admin" },
+  { email: "support@4sport.co.za", fullName: "4SPORT Support", role: "admin" },
+  { email: "info@4sport.co.za", fullName: "Mariaan", role: "admin" },
 ];
+
+function assertRoleAllowed(email: string, role: AccountRole) {
+  if (role === "admin" && !APPROVED_ADMIN_EMAILS.has(email.trim().toLowerCase())) {
+    throw new Error("Administrator access is restricted to approved 4SPORT accounts.");
+  }
+}
 
 async function requireBackOffice(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -43,6 +56,7 @@ async function upsertLinkedRows(input: {
   phone?: string; province?: string; region?: string; sportFocus?: string; active?: boolean;
 }) {
   const { userId, email, fullName, role } = input;
+  assertRoleAllowed(email, role);
   const profile: ProfileInsert = { id: userId, email, full_name: fullName };
   const userRole: UserRoleInsert = { user_id: userId, role };
   const [{ error: profileError }, { error: roleDeleteError }] = await Promise.all([
@@ -117,6 +131,7 @@ export const inviteAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireBackOffice(context.userId);
     const email = data.email.toLowerCase();
+    assertRoleAllowed(email, data.role);
     let user = await findAuthUser(email);
     if (!user) {
       const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
@@ -194,6 +209,7 @@ export const updateAccount = createServerFn({ method: "POST" })
     if (data.region !== undefined) update.region = data.region;
     if (data.sportFocus !== undefined) update.sport_focus = data.sportFocus;
     if (data.active !== undefined) update.active = data.active;
+    if (data.role !== undefined) assertRoleAllowed(rep.email, data.role);
 
     const { error: upErr } = await supabaseAdmin.from("reps").update(update as never).eq("id", data.repId);
     if (upErr) throw upErr;
