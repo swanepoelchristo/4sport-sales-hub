@@ -30,6 +30,25 @@ const ALLOWED_SPORTS = new Set([
   "Rugby", "Athletics", "Swimming", "Hockey", "Netball",
   "Soccer", "Cricket", "Multi-sport", "Other",
 ]);
+const DUPLICATE_QUERY_BATCH_SIZE = 100;
+const INSERT_BATCH_SIZE = 100;
+
+function chunks<T>(values: T[], size: number) {
+  const batches: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    batches.push(values.slice(index, index + size));
+  }
+  return batches;
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
 
 function clean(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -42,7 +61,11 @@ function parseOrganisation(value: unknown): EvidenceOrganisation | null {
   const organisationType = clean(row.organisation_type, 30);
   const sourceUrl = clean(row.source_url, 1000);
 
-  if (!organisationName || !sourceUrl || !ALLOWED_ORG_TYPES.has(organisationType)) return null;
+  if (
+    !organisationName ||
+    !isHttpUrl(sourceUrl) ||
+    !ALLOWED_ORG_TYPES.has(organisationType)
+  ) return null;
 
   return {
     source_external_id: clean(row.source_external_id, 200),
@@ -145,23 +168,36 @@ export const Route = createFileRoute("/api/supersport-evidence-import")({
           return Response.json({ ok: true, fetched: 0, created: 0, skipped: 0, inserted: [] });
         }
 
-        const [{ data: existingCandidates, error: candidateError }, { data: existingLeads, error: leadError }] =
-          await Promise.all([
-            supabaseAdmin.from("lead_candidates").select("source_url_1").in("source_url_1", sourceUrls),
-            supabaseAdmin.from("leads").select("source_url").in("source_url", sourceUrls),
+        const knownUrls = new Set<string>();
+        for (const sourceUrlBatch of chunks(sourceUrls, DUPLICATE_QUERY_BATCH_SIZE)) {
+          const [
+            { data: existingCandidates, error: candidateError },
+            { data: existingLeads, error: leadError },
+          ] = await Promise.all([
+            supabaseAdmin
+              .from("lead_candidates")
+              .select("source_url_1")
+              .in("source_url_1", sourceUrlBatch),
+            supabaseAdmin
+              .from("leads")
+              .select("source_url")
+              .in("source_url", sourceUrlBatch),
           ]);
 
-        if (candidateError || leadError) {
-          return Response.json({
-            ok: false,
-            error: candidateError?.message || leadError?.message || "Duplicate check failed.",
-          }, { status: 500 });
-        }
+          if (candidateError || leadError) {
+            return Response.json({
+              ok: false,
+              error: candidateError?.message || leadError?.message || "Duplicate check failed.",
+            }, { status: 500 });
+          }
 
-        const knownUrls = new Set([
-          ...(existingCandidates || []).map((row) => row.source_url_1),
-          ...(existingLeads || []).map((row) => row.source_url),
-        ].filter(Boolean));
+          for (const row of existingCandidates || []) {
+            if (row.source_url_1) knownUrls.add(row.source_url_1);
+          }
+          for (const row of existingLeads || []) {
+            if (row.source_url) knownUrls.add(row.source_url);
+          }
+        }
 
         const candidates: CandidateInsert[] = [];
         for (const evidence of payload.organisations) {
@@ -200,14 +236,14 @@ export const Route = createFileRoute("/api/supersport-evidence-import")({
           });
         }
 
-        let inserted: unknown[] = [];
-        if (candidates.length) {
+        const inserted: unknown[] = [];
+        for (const candidateBatch of chunks(candidates, INSERT_BATCH_SIZE)) {
           const { data, error } = await supabaseAdmin
             .from("lead_candidates")
-            .insert(candidates)
+            .insert(candidateBatch)
             .select("*");
           if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
-          inserted = data || [];
+          inserted.push(...(data || []));
         }
 
         return Response.json({
