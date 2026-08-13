@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ClipboardCheck, Search, ShieldAlert, Plus, CheckCircle2, XCircle, ArrowRightCircle } from "lucide-react";
+import { ClipboardCheck, Search, ShieldAlert, Plus, CheckCircle2, XCircle, ArrowRightCircle, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -211,6 +211,60 @@ function LeadCandidatesPage() {
       sports: researchTarget.sports,
       inserted: inserted.length,
       updated_existing: updatedExisting.length,
+      skipped: result.skipped || 0,
+    }));
+  };
+
+  const importSupersportEvidence = async () => {
+    if (!isAdmin) {
+      setMessage("Only admin can import SuperSport organisation evidence.");
+      return;
+    }
+
+    setBusy("supersport-import");
+    setMessage(null);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      setBusy(null);
+      setMessage("You must be logged in to import organisation evidence.");
+      return;
+    }
+
+    const response = await fetch("/api/supersport-evidence-import", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const result = await response.json().catch(() => ({}));
+    setBusy(null);
+
+    if (!response.ok || !result.ok) {
+      setMessage(result.error || "SuperSport organisation evidence import failed.");
+      return;
+    }
+
+    const inserted = Array.isArray(result.inserted) ? result.inserted as LeadCandidate[] : [];
+    if (inserted.length) {
+      setState((current) => ({
+        ...current,
+        leadCandidates: [
+          ...inserted,
+          ...current.leadCandidates.filter(
+            (candidate) => !inserted.some((created) => created.id === candidate.id)
+          ),
+        ],
+      }));
+    }
+
+    setStatus("needs_check");
+    setMessage(
+      `Imported ${result.created || 0} organisation candidate(s); ${result.skipped || 0} duplicate(s) skipped. Human verification is still required.`
+    );
+    void audit("lead_candidate.supersport_evidence_import", JSON.stringify({
+      fetched: result.fetched || 0,
+      created: result.created || 0,
       skipped: result.skipped || 0,
     }));
   };
@@ -508,6 +562,30 @@ function LeadCandidatesPage() {
                 {busy === "generate" ? "Generating..." : "Generate candidates"}
               </button>
               {message && <p className="text-sm text-muted-foreground">{message}</p>}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-secondary p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex max-w-3xl items-start gap-3">
+                <Download className="mt-0.5 h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-semibold">Import SuperSport Schools organisation evidence</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Bring televised schools and clubs into Research Inbox as needs-check candidates. No contact details are
+                    trusted, and nothing becomes a sales lead until an admin completes the existing human check.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={importSupersportEvidence}
+                disabled={busy === "supersport-import"}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                <Download className="h-4 w-4" />
+                {busy === "supersport-import" ? "Importing..." : "Import evidence"}
+              </button>
             </div>
           </div>
         </Section>
