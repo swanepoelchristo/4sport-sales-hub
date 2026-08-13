@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate, useParams, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/ui-bits";
 import { LEAD_STATUSES, PROVINCES, SPORTS, type Lead, type LeadStatus, type OrgType, type Sport } from "@/lib/types";
@@ -161,13 +161,4 @@ function Field({ label, children, required, full }: { label: string; children: R
       <div className="mt-1">{children}</div>
     </label>
   );
-}
-
-// Edit route reuses this in a separate file
-export function useEditableLead() {
-  const { state, user } = useStore();
-  const { leadId } = useParams({ from: "/_app/leads/$leadId" });
-  const lead = useMemo(() => state.leads.find((l) => l.id === leadId), [state.leads, leadId]);
-  const allowed = lead && (user?.role === "admin" || lead.assigned_rep_id === user?.id);
-  return { lead, leadId, allowed };
 }
