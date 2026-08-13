@@ -75,7 +75,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth
-AS $
+AS $$
 BEGIN
   IF lower(COALESCE(NEW.email, '')) IS DISTINCT FROM lower(COALESCE(OLD.email, ''))
      AND EXISTS (
@@ -92,7 +92,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS prevent_admin_email_change ON auth.users;
 CREATE TRIGGER prevent_admin_email_change
