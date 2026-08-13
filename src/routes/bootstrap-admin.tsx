@@ -38,7 +38,7 @@ function BootstrapAdminPage() {
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xl">
             <p className="text-sm text-muted-foreground">
-              Repairs the two designated 4SPORT back-office administrator accounts and their linked profile, role and rep records.
+              Repairs the three designated 4SPORT back-office administrator accounts and their linked profile, role and rep records.
               You must already be signed in as an administrator to run this action.
             </p>
             {msg && <p className="mt-3 text-sm text-foreground">{msg}</p>}
