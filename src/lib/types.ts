@@ -6,8 +6,8 @@
 export type Role = "admin" | "sales_rep" | "call_center_agent";
 
 export interface Profile {
-  id: string;       // linked rep.id or call_center_agent.id when available; otherwise '' for unlinked admin
-  auth_id: string;  // auth.users.id
+  id: string;
+  auth_id: string;
   full_name: string;
   email: string;
   role: Role;
@@ -45,32 +45,14 @@ export interface CallCenterAgent {
 }
 
 export type LeadStatus =
-  | "New Lead"
-  | "Contacted"
-  | "Meeting Scheduled"
-  | "Pitched"
-  | "Interested"
-  | "Not Interested"
-  | "Signed"
-  | "Paid"
-  | "Active"
-  | "Lost";
+  | "New Lead" | "Contacted" | "Meeting Scheduled" | "Pitched" | "Interested"
+  | "Not Interested" | "Signed" | "Paid" | "Active" | "Lost";
 
 export type CallOutcome =
-  | "no_answer"
-  | "interested"
-  | "not_interested"
-  | "call_back_later"
-  | "meeting_booked"
-  | "converted"
-  | "do_not_contact";
+  | "no_answer" | "interested" | "not_interested" | "call_back_later"
+  | "meeting_booked" | "converted" | "do_not_contact";
 
-export type LeadActivityType =
-  | "call"
-  | "note"
-  | "email"
-  | "meeting"
-  | "status_change";
+export type LeadActivityType = "call" | "note" | "email" | "meeting" | "status_change";
 
 export interface LeadActivity {
   id: string;
@@ -83,13 +65,7 @@ export interface LeadActivity {
   created_at: string;
 }
 
-export type LeadCandidateStatus =
-  | "draft"
-  | "needs_check"
-  | "checked_once"
-  | "approved"
-  | "rejected"
-  | "converted";
+export type LeadCandidateStatus = "draft" | "needs_check" | "checked_once" | "approved" | "rejected" | "converted";
 
 export interface LeadCandidate {
   id: string;
@@ -99,37 +75,28 @@ export interface LeadCandidate {
   city: string;
   region: string;
   sport_focus: Sport;
-
   contact_person: string;
   contact_role: string;
   public_phone: string;
   public_email: string;
   website: string;
-
   source_url_1: string;
   source_url_2: string;
   source_url_3: string;
   source_note: string;
-
   verification_status: LeadCandidateStatus;
-
   check_1_by: string | null;
   check_1_at: string | null;
   check_1_note: string;
-
   check_2_by: string | null;
   check_2_at: string | null;
   check_2_note: string;
-
   approved_by: string | null;
   approved_at: string | null;
-
   rejected_by: string | null;
   rejected_at: string | null;
   rejected_reason: string;
-
   converted_lead_id: string | null;
-
   created_by: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -137,8 +104,8 @@ export interface LeadCandidate {
 
 export type OrgType = "School" | "Club" | "Academy" | "Other";
 export type Sport =
-  | "Rugby" | "Athletics" | "Swimming" | "Hockey"
-  | "Netball" | "Soccer" | "Cricket" | "Multi-sport" | "Other";
+  | "Rugby" | "Athletics" | "Swimming" | "Hockey" | "Netball"
+  | "Soccer" | "Cricket" | "Multi-sport" | "Other";
 
 export interface Lead {
   id: string;
@@ -148,15 +115,11 @@ export interface Lead {
   city: string;
   region: string;
   sport_focus: Sport;
-
-  // Existing sales pipeline fields.
   contact_person: string;
   contact_role: string;
   phone: string;
   email: string;
   lead_source: string;
-
-  // PR #6 call-centre-safe public information fields.
   website: string;
   public_phone: string;
   public_email: string;
@@ -167,8 +130,6 @@ export interface Lead {
   last_call_outcome: CallOutcome | "";
   last_call_note: string;
   last_contacted_at: string | null;
-
-  // Marketing attribution is optional/additive and does not change existing lead workflow.
   marketing_campaign_id?: string;
   marketing_creative_id?: string;
   marketing_campaign_code?: string;
@@ -178,7 +139,6 @@ export interface Lead {
   utm_campaign?: string;
   utm_content?: string;
   landing_path?: string;
-
   assigned_rep_id: string;
   status: LeadStatus;
   notes: string;
@@ -210,29 +170,21 @@ export interface Signup {
   id: string;
   lead_id: string;
   rep_id: string;
-
   signed_date: string;
-
   paid: boolean;
   payment_date: string | null;
-
   active_teams: number;
   paying_users_active: boolean;
-
+  paying_student_count: number;
   deal_type: string;
-
   base_price: number;
   quoted_price: number;
   final_agreed_price: number;
-
   contract_term: string;
   pricing_notes: string;
-
   approval_required: boolean;
   approved_by: string | null;
-
   first_payment_received: boolean;
-
   support_package: string;
   support_term_months: number;
   support_response_sla: string;
@@ -241,15 +193,12 @@ export interface Signup {
   rep_support_commission_rate: number;
   pain_point_notes: string;
   operational_risk_notes: string;
-
   risk_level: "LOW" | "MEDIUM" | "HIGH";
   risk_score: number;
   support_tickets_used: number;
   last_support_contact: string | null;
-
   commission_year: CommissionYear;
   commission_payment_status: CommissionPaymentStatus;
-
   admin_notes: string;
 }
 
@@ -296,24 +245,36 @@ export const CALL_OUTCOMES: { value: CallOutcome; label: string }[] = [
   { value: "do_not_contact", label: "Do not contact" },
 ];
 
+// The signed 4SPORT representative agreement pays the same school commission
+// every qualifying year. The legacy declining year bands are retained as labels
+// for historical records, but no longer reduce the amount.
 export const COMMISSION_AMOUNTS: Record<CommissionYear, number> = {
   "1st year": 500,
-  "2nd consecutive year": 300,
-  "3rd consecutive year": 200,
-  "4th consecutive year": 100,
-  "5th year+": 50,
+  "2nd consecutive year": 500,
+  "3rd consecutive year": 500,
+  "4th consecutive year": 500,
+  "5th year+": 500,
 };
 
-// Flexible enterprise qualification logic
+export const STUDENT_COMMISSION_AMOUNT = 50;
+
 export function commissionQualified(s: Signup): boolean {
   return (
+    s.paid &&
     s.first_payment_received &&
-    s.final_agreed_price > 0
+    s.final_agreed_price > 0 &&
+    Number(s.active_teams || 0) >= 3 &&
+    s.paying_users_active
   );
 }
 
 export function signupCommissionAmount(s: Signup): number {
   return commissionQualified(s) ? COMMISSION_AMOUNTS[s.commission_year] : 0;
+}
+
+export function studentCommissionAmount(s: Signup): number {
+  if (!commissionQualified(s)) return 0;
+  return Math.max(0, Math.floor(Number(s.paying_student_count || 0))) * STUDENT_COMMISSION_AMOUNT;
 }
 
 export function supportCommissionAmount(s: Signup): number {
@@ -323,7 +284,7 @@ export function supportCommissionAmount(s: Signup): number {
 }
 
 export function commissionAmount(s: Signup): number {
-  return signupCommissionAmount(s) + supportCommissionAmount(s);
+  return signupCommissionAmount(s) + studentCommissionAmount(s) + supportCommissionAmount(s);
 }
 
 export function signupRiskLevel(s: Signup): "LOW" | "MEDIUM" | "HIGH" {
