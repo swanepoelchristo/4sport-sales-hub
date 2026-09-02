@@ -125,6 +125,7 @@ const signupFromRow = (r: SignupRow): Signup => ({
   payment_date: r.payment_date ?? null,
   active_teams: r.active_teams ?? 0,
   paying_users_active: !!r.paying_users_active,
+  paying_student_count: Number(r.paying_student_count ?? 0),
 
   deal_type: r.deal_type ?? "School",
 
@@ -300,6 +301,7 @@ const signupToRow = (s: Signup) => ({
   signed_date: s.signed_date, paid: s.paid, payment_date: s.payment_date,
   active_teams: s.active_teams,
   paying_users_active: s.paying_users_active,
+  paying_student_count: s.paying_student_count,
 
   deal_type: s.deal_type,
 
@@ -459,9 +461,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return first;
   }, [buildProfileFromSession]);
 
-
-
-
   useEffect(() => {
     let active = true;
 
@@ -558,8 +557,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await loadAll(profile);
     return profile;
   }, [resolveProfile, loadAll]);
-
-
 
   const logout = useCallback(async (reason: "manual" | "idle" = "manual") => {
     const activeUser = user;
