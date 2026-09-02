@@ -29,7 +29,7 @@ const NAV: NavItem[] = [
   { to: "/system-check", label: "System", icon: ShieldCheck, backOfficeOnly: true },
 ];
 
-const FOURSPORT_APP_URL = "https://foursport.onrender.com";
+const FOURSPORT_APP_URL = "https://4sport.co.za";
 
 export function AppLayout() {
   const { user, logout, dataError, mutationError, clearMutationError, reloadData } = useStore();
