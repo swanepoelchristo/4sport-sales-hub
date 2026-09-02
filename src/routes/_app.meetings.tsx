@@ -20,6 +20,12 @@ function fmtDateTime(iso: string) {
   });
 }
 
+function toLocalInputValue(iso: string) {
+  const d = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function MeetingsPage() {
   const { state, user, setState, addActivity, uid } = useStore();
   const userId = user?.id ?? "";
@@ -76,6 +82,14 @@ function MeetingsPage() {
       ...current,
       meetings: current.meetings.map((meeting) => meeting.id === id ? { ...meeting, ...patch } : meeting),
     }));
+  };
+
+  const updateMeetingTime = (meeting: Meeting, value: string) => {
+    if (!value) return;
+    const nextIso = new Date(value).toISOString();
+    if (nextIso === meeting.meeting_at) return;
+    updateMeeting(meeting.id, { meeting_at: nextIso });
+    addActivity("Meeting time updated", leadById(meeting.lead_id)?.org_name ?? "");
   };
 
   const visibleLeads = isAdmin ? state.leads : state.leads.filter((l) => l.assigned_rep_id === user.id);
@@ -363,7 +377,13 @@ function MeetingsPage() {
                 {meetings.map((m) => (
                   <tr key={m.id} className="border-t border-slate-200 transition hover:bg-cyan-50/40">
                     <td className="whitespace-nowrap px-5 py-4 font-medium text-slate-950">
-                      {fmtDateTime(m.meeting_at)}
+                      <input
+                        aria-label={`Meeting time for ${leadById(m.lead_id)?.org_name ?? "meeting"}`}
+                        type="datetime-local"
+                        defaultValue={toLocalInputValue(m.meeting_at)}
+                        onBlur={(event) => updateMeetingTime(m, event.target.value)}
+                        className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold"
+                      />
                     </td>
 
                     <td className="px-5 py-4 font-semibold text-slate-950">
@@ -414,6 +434,16 @@ function MeetingsPage() {
                       {fmtDateTime(m.meeting_at)} • {m.meeting_type}
                       {isAdmin && <> • {repById(m.rep_id)?.full_name}</>}
                     </p>
+                    <label className="mt-3 block text-xs font-semibold text-slate-600">
+                      Meeting date & time
+                      <input
+                        aria-label={`Meeting time for ${leadById(m.lead_id)?.org_name ?? "meeting"}`}
+                        type="datetime-local"
+                        defaultValue={toLocalInputValue(m.meeting_at)}
+                        onBlur={(event) => updateMeetingTime(m, event.target.value)}
+                        className={`${inp} mt-1`}
+                      />
+                    </label>
                   </div>
 
                   <select
