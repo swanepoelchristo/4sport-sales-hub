@@ -7,7 +7,7 @@ import mascot from "@/assets/4sport-whistle-mascot.webp";
 import {
   LayoutDashboard, Calendar, Building2, ClipboardCheck, Banknote, UserCog,
   History, LogOut, ShieldCheck, BarChart3, Headset, MessageCircle, Globe2,
-  Megaphone, FileText, ExternalLink,
+  Megaphone, FileText, ExternalLink, Send,
 } from "lucide-react";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; backOfficeOnly?: boolean };
@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/impact", label: "Impact", icon: Globe2, backOfficeOnly: true },
   { to: "/leads", label: "Leads", icon: Building2 },
+  { to: "/prepared-leads", label: "Prepared Leads", icon: Send },
   { to: "/lead-candidates", label: "Research Inbox", icon: ClipboardCheck },
   { to: "/meetings", label: "Meetings", icon: Calendar },
   { to: "/signups", label: "Signups", icon: Banknote },
