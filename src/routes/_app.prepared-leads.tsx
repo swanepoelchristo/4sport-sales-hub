@@ -72,7 +72,7 @@ function PreparedLeadsPage() {
       .update({
         status: "Contacted",
         last_contacted_at: now,
-        next_follow_up_at: followUp,
+        next_follow_up: followUp,
         notes: `Initial email sent to ${recipient}. Follow-up scheduled in 3 days.`,
       })
       .eq("id", lead.id);
@@ -91,7 +91,7 @@ function PreparedLeadsPage() {
             ...item,
             status: "Contacted",
             last_contacted_at: now,
-            next_follow_up_at: followUp,
+            next_follow_up: followUp,
             notes: `Initial email sent to ${recipient}. Follow-up scheduled in 3 days.`,
           }
         : item),
